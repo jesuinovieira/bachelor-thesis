@@ -1,0 +1,11 @@
+.venv/
+.idea/
+.pytest_cache/
+__pycache__/
+
+.bkp/
+data/
+discussion/
+etc/
+output/
+references/

@@ -1,0 +1,57 @@
+import matplotlib.backends.backend_pdf
+import pandas as pd
+
+import src.lib.plot as plot
+
+
+FILENAME = "data/dataset.csv"
+LOGFILE = "output/output.log"
+PDF = "output/output.pdf"
+
+
+def main():
+    pdf = matplotlib.backends.backend_pdf.PdfPages(PDF)
+    df = pd.read_csv(FILENAME, index_col="timestamp")
+
+    stay = [
+        "water_produced",
+        "temperature_mean",
+        "temperature_std",
+        "radiation_mean",
+        "radiation_std",
+        "relative_humidity_mean",
+        "relative_humidity_std",
+        "precipitation_mean",
+        "precipitation_std",
+        "year",
+    ]
+    df1 = df.drop(columns=[col for col in df if col not in stay])
+
+    stay = [
+        "water_produced",
+        "month",
+        "day",
+        "dayofweek",
+        "season",
+    ]
+    df2 = df.drop(columns=[col for col in df if col not in stay])
+
+    stay = [
+        "water_produced",
+        "is_weekend",
+        "is_holiday_ctba_gtba_jve",
+        "is_carnival",
+        "is_school_recess_pr",
+        # "is_no_school_day",
+    ]
+    df3 = df.drop(columns=[col for col in df if col not in stay])
+
+    plot.correlation(df1, "pearson", pdf)
+    plot.correlation(df2, "pearson", pdf)
+    plot.pbc(df3, "water_produced", pdf)
+
+    pdf.close()
+
+
+if __name__ == "__main__":
+    main()

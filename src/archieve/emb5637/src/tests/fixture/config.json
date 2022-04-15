@@ -1,0 +1,21 @@
+{
+    "kdd": {
+        "select": true,
+        "preprocess": true,
+        "transform": true,
+        "fit": true,
+        "evaluate": true
+    },
+    "source": {
+        "raw-folder": "src/tests/tmp/data/raw",
+        "preprocessed-folder": "src/tests/tmp/data/cache",
+        "output-folder": "src/tests/tmp/data"
+    },
+    "processor": {
+        "methods": ["LR", "KNN", "SVR", "MLP"],
+        "feature-set": ["FS1"],
+        "validation-method": ["EW", "SW"],
+        "train-window": [730],
+        "test-window": [3]
+    }
+}

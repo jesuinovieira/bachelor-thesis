@@ -1,0 +1,23 @@
+[flake8]
+# Matching the black line length (default 88)
+max-line-length = 88
+max-complexity = 10
+extend-ignore =
+    # See https://github.com/PyCQA/pycodestyle/issues/373
+    E203,
+    E131,
+    F541
+exclude =
+    .venv/,
+    .idea/
+    .bkp/,
+    .pytest_cache/,
+    __pycache__/,
+    .flake8,
+    .git,
+    # Add your file and folders to ignore here
+    data/
+    discussion/
+    etc/
+    output/
+    references/
