@@ -40,4 +40,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    print(f"Not sure if it's working...")
+    # main()

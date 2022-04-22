@@ -41,6 +41,20 @@ def _extenddfs(df, areas, city, dftotal, dfareas):
     return dftotal, dfareas
 
 
+def _createcolumn(city, dftotal, dfareas):
+    length = len(dftotal)
+    new = []
+
+    for i in range(length):
+        values = [item.iloc[i].consumed for item in dfareas.values()]
+        summed = sum(values)
+        new.append(summed)
+
+    dftotal[f"consumed-sum-{city}"] = new
+
+    return dftotal
+
+
 def _validate(total, pl, canoas, ipanema, shangrila, atami):
     length = len(total)
     lst = [pl, canoas, ipanema, shangrila, atami]
@@ -95,7 +109,17 @@ def ufprdiario(srcs, areas, city):
 
     dftotal = dftotal.set_index("timestamp")
     for area in areas:
-        dfareas[area].set_index("timestamp")
+        dfareas[area] = dfareas[area].set_index("timestamp")
+
+    # Some lines are duplicated, probably due to bad formatting of the .xlsx file.
+    # Fortunately, the correct value is always the last one
+    # print(dftotal[dftotal.index.duplicated(keep=False)])
+    dftotal = dftotal[~dftotal.index.duplicated(keep="last")]
+    for area in areas:
+        dfareas[area] = dfareas[area][~dfareas[area].index.duplicated(keep="last")]
+
+    # Create a column that is the sum of the volume of all areas
+    dftotal = _createcolumn(city, dftotal, dfareas)
 
     # _validate(total, pl, canoas, ipanema, shangrila, atami)
 
@@ -173,11 +197,6 @@ def main(basepath="eda/data"):
 
     # Merge gathered data into a single dataframe
     # ----------------------------------------------------------------------------------
-
-    # FIXME: see whats going on with dup indexes on consumed data
-    for i, _ in enumerate(dflist):
-        dflist[i] = dflist[i][~dflist[i].index.duplicated(keep="first")]
-        print(dflist[i].index.is_unique)
 
     df = pd.concat(dflist, axis=1)
     dst = os.path.join(raw, "merged.csv")

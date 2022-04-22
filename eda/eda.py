@@ -25,21 +25,15 @@ def read(src):
     return df
 
 
-def clean(df, cutoff):
-    col = df.columns[1]
-    print(f"Size: {len(df)}")
+def outliers(series, k=1.5):
+    # Find outlier using first and third quartiles and interquartile range.
+    q1, q3 = series.quantile(.25), series.quantile(.75)
+    iqr = q3 - q1
+    lb, ub = q1 - k * iqr, q3 + k * iqr
 
-    # df = df.dropna()
-    # print(f"Size: {len(df)} (drop nan)")
+    idxs = (series < lb) | (series > ub)
 
-    df = df[df[col] > 0]
-    print(f"Size: {len(df)} (drop negative values)")
-
-    # df = df[(np.abs(stats.zscore(df)) < 3).all(axis=1)]
-    df = df[df[col] < cutoff]
-    print(f"Size: {len(df)} (drop outliers, cutoff {cutoff})\n")
-
-    return df
+    return idxs
 
 
 def everything(df, city, pdf, show):
@@ -107,26 +101,13 @@ def E1P(df, city, pdf, show):
     monthly(df, city, pdf, show)
 
 
-def E1(df):
-    # Produced vs consumed of each city
-    with PdfPages(f"eda/E1.pdf") as pdf:
-        for city in ["gtba", "pp", "matinhos"]:
-            droplist = [column for column in df.columns if city not in column]
-            tmp = df.drop(droplist, axis=1)
-
-            # FIXME: workaround
-            tmp = clean(tmp, cutoff=30000)
-
-            E1P(tmp, city, pdf, False)
-
-
 def E23P(df, title, pdf, show):
     # TODO: move this plot to src.plot?
-
     # style = ["--", "--", "-", "-", "-"]
     # colors = ["tab:blue", "tab:orange", "tab:green", "tab:red", "tab:purple"]
     years = [2016, 2017, 2018, 2019]
 
+    # TODO: df.plot(subplots=True)
     # Plot all years
     fig, axs = src.plot.setup(nrows=1)
     # fmt: off
@@ -155,9 +136,18 @@ def E23P(df, title, pdf, show):
         src.plot.wrapup(pdf, show)
 
 
+def E1(df):
+    # Produced vs consumed of each city
+    with PdfPages(f"eda/output/E1.pdf") as pdf:
+        for city in ["gtba", "pp", "matinhos"]:
+            droplist = [column for column in df.columns if city not in column]
+            tmp = df.drop(droplist, axis=1)
+            E1P(tmp, city, pdf, False)
+
+
 def E2(df):
     # Produced of all cities
-    with PdfPages(f"eda/E2.pdf") as pdf:
+    with PdfPages(f"eda/output/E2.pdf") as pdf:
         droplist = [column for column in df.columns if "produced" not in column]
         tmp = df.drop(droplist, axis=1)
         E23P(tmp, "produced", pdf, False)
@@ -165,7 +155,7 @@ def E2(df):
 
 def E3(df):
     # Produced of all cities
-    with PdfPages(f"eda/E3.pdf") as pdf:
+    with PdfPages(f"eda/output/E3.pdf") as pdf:
         droplist = [column for column in df.columns if "consumed" not in column]
         tmp = df.drop(droplist, axis=1)
         E23P(tmp, "consumed", pdf, False)
@@ -177,8 +167,15 @@ def main():
 
     df = read("eda/data/raw/merged.csv")
 
-    # df1 = clean(df1, cutoff=30000)
-    # df2 = clean(df2, cutoff=25000)
+    df = df.drop(columns=["consumed-sum-pp", "consumed-sum-gtba"])
+
+    df["consumed-pp"] = df["consumed-pp"][df["consumed-pp"] > 0]
+    df["consumed-gtba"] = df["consumed-gtba"][df["consumed-gtba"] > 0]
+
+    df["consumed-pp"] = df["consumed-pp"][~outliers(df["consumed-pp"])]
+    # Note: the filter is applied two times in order to get a decent time series
+    df["consumed-gtba"] = df["consumed-gtba"][~outliers(df["consumed-gtba"])]
+    df["consumed-gtba"] = df["consumed-gtba"][~outliers(df["consumed-gtba"])]
 
     # E0(df)
     E1(df)
