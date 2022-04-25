@@ -65,13 +65,27 @@ class Source:
         # Ideas:
         #
         # [ ] Make it configurable?
-        # [ ] Remove noise
+        # [x] Remove noise
         # [ ] Remove outliers
         # [ ] Handle missing values
         # [ ] Onehotencoding (?) this is not cleaning, but might be... what?
 
         df = df.dropna()  # Drop rows with any missing value
         df = df.round(2)  # Round numeric columns
+
+        # @d2: data smoothing
+        # ==============================================================================
+        ts = df.water_produced.to_numpy()
+
+        from scipy.signal import savgol_filter
+        from src.ssa import SSA
+
+        L, r = 2, 0
+        df.water_produced = SSA(ts, L).reconstruct(r=r)
+
+        # w, p, mode = 5, 2, "interp"
+        # df.water_produced = savgol_filter(ts, w, p, mode=mode)
+        # ==============================================================================
 
         return df
 

@@ -88,7 +88,11 @@ class Sink:
         df = pd.concat([lr, knn, svr, mlp])
 
         title = "Model with max R2 of each method"
-        df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
+        axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
+
+        for ax in axes.flatten():
+            for container in ax.containers:
+                ax.bar_label(container)
 
         plot.wrapup(pdf)
 
