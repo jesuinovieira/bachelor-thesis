@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 
@@ -34,27 +35,38 @@ class Sink:
         self.df = None
         self.prs = prs
         self.output = path
+        self.metric = "rmse"
 
         self._prs2df()
 
     def _prs2df(self):
         # Processor results to dataframe
-        idx, r2, mae, mse, rmse = [], [], [], [], []
+        idx, r2, mae, mape, rmse = [], [], [], [], []
         for pr in self.prs:
             _idx = pr.id
-            _r2, _mae, _mse, _rmse = self.getmetrics(pr.ytrue, pr.yhat)
+            _r2, _mae, _mape, _rmse = self.getmetrics(pr.ytrue, pr.yhat)
 
             idx.append(_idx)
             r2.append(_r2)
             mae.append(_mae)
-            mse.append(_mse)
+            mape.append(_mape)
             rmse.append(_rmse)
 
         # Create dataframe
-        data = {"r2": r2, "mae": mae, "mse": mse, "rmse": rmse}
+        data = {"r2": r2, "mae": mae, "mape": mape, "rmse": rmse}
         self.df = pd.DataFrame(data=data, index=idx)
 
         return self.df
+
+    def _getbest(self, like):
+        subset = self.df.filter(like=like, axis="index")
+
+        if self.metric != "r2":
+            best = subset[subset[self.metric] == subset[self.metric].min()]
+        else:
+            best = subset[subset[self.metric] == subset[self.metric].max()]
+
+        return best
 
     def evaluate(self, overview=True, detailed=True):
         output = f"{self.output}/output.pdf"
@@ -73,21 +85,14 @@ class Sink:
             self.monthly(pdf)
 
     def barofbests(self, pdf):
-        lr = self.df.filter(like="LR", axis="index")
-        lr = lr[lr.r2 == lr.r2.max()]
-
-        knn = self.df.filter(like="KNN", axis="index")
-        knn = knn[knn.r2 == knn.r2.max()]
-
-        svr = self.df.filter(like="SVR", axis="index")
-        svr = svr[svr.r2 == svr.r2.max()]
-
-        mlp = self.df.filter(like="MLP", axis="index")
-        mlp = mlp[mlp.r2 == mlp.r2.max()]
+        lr = self._getbest("LR")
+        knn = self._getbest("KNN")
+        svr = self._getbest("SVR")
+        mlp = self._getbest("MLP")
 
         df = pd.concat([lr, knn, svr, mlp])
 
-        title = "Model with max R2 of each method"
+        title = F"Model with max {self.metric.upper()} of each method"
         axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
 
         for ax in axes.flatten():
@@ -101,9 +106,8 @@ class Sink:
 
         methods = ["LR", "KNN", "SVR", "MLP"]
         for method in methods:
-            # Select the model with best perfomance based on some metric
-            filtered = self.df.filter(like=method, axis="index")
-            filtered = filtered[filtered.r2 == filtered.r2.max()]
+            # Select the model with best performance based on some metric
+            filtered = self._getbest(method)
 
             if filtered.empty:
                 continue
@@ -143,8 +147,7 @@ class Sink:
         methods = ["LR", "KNN", "SVR", "MLP"]
         for method in methods:
             # Select the model with best perfomance based on some metric
-            filtered = self.df.filter(like=method, axis="index")
-            filtered = filtered[filtered.r2 == filtered.r2.max()]
+            filtered = self._getbest(method)
 
             if filtered.empty:
                 continue
@@ -216,7 +219,7 @@ class Sink:
     def getmetrics(self, ytrue, yhat):
         r2 = r2_score(ytrue, yhat)
         mae = mean_absolute_error(ytrue, yhat)
-        mse = mean_squared_error(ytrue, yhat, squared=True)
+        mape = mean_absolute_percentage_error(ytrue, yhat)
         rmse = mean_squared_error(ytrue, yhat, squared=False)
 
-        return r2, mae, mse, rmse
+        return r2, mae, mape, rmse
