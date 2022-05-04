@@ -1,7 +1,7 @@
 {
     "kdd": {
         "select": false,
-        "preprocess": false,
+        "preprocess": true,
         "transform": true,
         "fit": true,
         "evaluate": true
@@ -15,7 +15,7 @@
         "methods": ["LR", "KNN", "SVR", "MLP"],
         "feature-set": ["FS1"],
         "validation-method": ["EW", "SW"],
-        "train-window": [730],
-        "test-window": [3]
+        "train-window": [729, 1092],
+        "n-splits": [104]
     }
 }

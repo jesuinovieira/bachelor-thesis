@@ -131,7 +131,7 @@ class KDDPipeline:
 
 
 def _getprocessors(config, df):
-    def _getprocessor(method, fs, dbname, vm, trainw, testw):
+    def _getprocessor(method, fs, dbname, vm, trainw, n_splits):
         if "LR" in method:
             Processor = LRProcessor
         elif "KNN" in method:
@@ -143,7 +143,7 @@ def _getprocessors(config, df):
         else:
             raise AssertionError(f"Method '{method} not supported'")
 
-        return Processor(method, fs, dbname, vm, trainw, testw)
+        return Processor(method, fs, dbname, vm, trainw, n_splits)
 
     def _getsubset(innerdf, subset):
         # Subsets
@@ -178,7 +178,7 @@ def _getprocessors(config, df):
             "dbname": item[1],
             "vm": item[2],
             "trainw": item[3],
-            "testw": item[4],
+            "n_splits": item[4],
         }
 
         processor = _getprocessor(**params)
