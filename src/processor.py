@@ -58,6 +58,7 @@ class Processor:
 
             # Rescale the target and save results
             self.pr.add(
+                split=i,
                 yhat=src.utils.rescaletarget(self._scaler, y_hat),
                 ytrue=src.utils.rescaletarget(self._scaler, y_test),
             )
@@ -86,12 +87,14 @@ class ProcessorResults:
 
         self.yhat = np.array([], dtype=float)
         self.ytrue = np.array([], dtype=float)
+        self.split = np.array([], dtype=int)
         self.timestamp = np.array([], dtype=float)
 
-    def add(self, yhat, ytrue):
+    def add(self, split, yhat, ytrue):
         assert yhat.size == ytrue.size
         self.yhat = np.append(self.yhat, yhat)
         self.ytrue = np.append(self.ytrue, ytrue)
+        self.split = np.append(self.split, np.full(yhat.size, fill_value=split))
 
     def save(self, timestamps):
         if not os.path.isdir(self.output):
@@ -100,10 +103,12 @@ class ProcessorResults:
         if not self.timestamp.size:
             self.timestamp = timestamps
 
-        assert self.yhat.size == self.ytrue.size == self.timestamp.size
+        assert (
+            self.yhat.size == self.ytrue.size == self.timestamp.size == self.split.size
+        )
 
         # Save predictions
-        data = {"ytrue": self.ytrue, "yhat": self.yhat}
+        data = {"ytrue": self.ytrue, "yhat": self.yhat, "split": self.split}
         df = pd.DataFrame(data=data, index=timestamps)
         dst = os.path.join(self.output, f"{self.id}.csv")
         df.to_csv(dst, index=True, index_label="timestamp")
