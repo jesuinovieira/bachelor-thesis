@@ -54,7 +54,11 @@ class Processor:
         n_jobs = -1
 
         search = GridSearchCV(
-            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs,
+            self.model,
+            self.space,
+            cv=self.tscv,
+            scoring=scoring,
+            n_jobs=n_jobs,
             # verbose=True
         )
         result = search.fit(X, y)
@@ -181,7 +185,7 @@ class SVRProcessor(Processor):
             C=[0.05, 0.1, 0.5, 1],
             epsilon=[0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
             # gamma=[0.0001, 0.001],
-            kernel=["linear", "poly", "rbf", "sigmoid"]
+            kernel=["linear", "poly", "rbf", "sigmoid"],
         )
         self.model = SVR(**self.defaults)
         # self.model = SVR(kernel="rbf", C=1, epsilon=0.1)
@@ -231,7 +235,16 @@ class MLPProcessor(Processor):
         # )
         self.space = dict(
             hidden_layer_sizes=[
-                (11,), (13,), (15,), (17,), (19,), (21,), (23,), (25,), (27,), (29,)
+                (11,),
+                (13,),
+                (15,),
+                (17,),
+                (19,),
+                (21,),
+                (23,),
+                (25,),
+                (27,),
+                (29,),
             ],
             activation=["tanh", "relu"],
             solver=["adam"],
@@ -239,7 +252,7 @@ class MLPProcessor(Processor):
             max_iter=[1000],
             tol=[1e-4],
             momentum=[0.9, 0.99],
-            early_stopping=[True, False]
+            early_stopping=[True, False],
         )
         self.model = MLPRegressor(**self.defaults)
 

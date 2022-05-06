@@ -16,6 +16,7 @@ def getcfg():
 # Pre-train tests
 # ======================================================================================
 
+
 def test_output_shape():
     # All regressors output a single number
     pass
@@ -55,6 +56,7 @@ def test_label_leakage():
 # Directional expectation tests: define a set of perturbations to the input which should
 # have a predictable effect on the model output
 # --------------------------------------------------------------------------------------
+
 
 def getprs(folder="output/processor"):
     prs = []
@@ -115,6 +117,7 @@ def test_is_carnival_perturbation():
 # Minimum functionality tests: data unit tests allow us to quantify model performance
 # for specific cases found in your data
 # --------------------------------------------------------------------------------------
+
 
 def test_per_season():
     pass

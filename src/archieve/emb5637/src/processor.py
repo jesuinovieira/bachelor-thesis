@@ -15,6 +15,7 @@ from src.utils import rescaletarget
 
 # TODO: orchestrate model training (googleit)
 
+
 class Processor:
     def __init__(self, name, df, dbname, vm, trainw, testw):
         self._name = name
@@ -125,7 +126,7 @@ class MLPProcessor(Processor):
     def __init__(self, id, df, dbname, vm, trainw, testw):
         super().__init__(id, df, dbname, vm, trainw, testw)
         self.model = MLPRegressor(
-            hidden_layer_sizes=(17, ),
+            hidden_layer_sizes=(17,),
             activation="relu",
             learning_rate_init=0.01,
             max_iter=1000,
