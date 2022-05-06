@@ -1,4 +1,5 @@
 import json
+import time
 from functools import partial
 
 import callback
@@ -8,13 +9,9 @@ from src import KDDPipeline
 CFGFILE = "config.json"
 
 
-if __name__ == "__main__":
+def main():
     with open(CFGFILE) as file:
         config = json.load(file)
-
-    kdd = KDDPipeline(config=config)
-
-    cities = [("GUARATUBA", "PR"), ("CURITIBA", "PR"), ("JOINVILLE", "SC")]
 
     callbacks = (
         partial(callback.waterproduced, "data/external/VP UFPR GTBA.xlsx"),
@@ -31,8 +28,27 @@ if __name__ == "__main__":
         ),
     )
 
+    kdd = KDDPipeline(config=config)
     kdd.select(callbacks)
     kdd.preprocess()
     kdd.transform()
     kdd.fit()
     kdd.evaluate()
+
+
+if __name__ == "__main__":
+    start = time.time()
+    main()
+    end = time.time()
+    delta = end - start
+
+    den, unit = 1, "seconds"
+    if delta >= 60:
+        den, unit = 60, "minutes"
+    if delta >= 3600:
+        den, unit = 3600, "hours"
+
+    print(
+        f"\n"
+        f"Elapsed time: {round(delta / den, 2)} {unit}"
+    )

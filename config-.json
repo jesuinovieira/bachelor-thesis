@@ -15,7 +15,7 @@
         "methods": ["LR", "KNN", "SVR", "MLP"],
         "feature-set": ["FS1"],
         "validation-method": ["EW", "SW"],
-        "train-window": [729, 1092],
-        "n-splits": [104]
+        "train-window": [1092],
+        "n-splits": [24, 48]
     }
 }
