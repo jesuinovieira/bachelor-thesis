@@ -1,9 +1,12 @@
+import logging
 import os
 
 import numpy as np
 import pandas as pd
 
 import src.utils as utils
+
+logger = logging.getLogger(__name__)
 
 
 class Source:
@@ -24,16 +27,17 @@ class Source:
         df, dst = callback()
         dst = os.path.join(self.raw, dst)
         df.to_csv(dst, index=True, index_label="timestamp")
-        print(f"Gathered '{dst}' file")
+        logger.info(f"Gathered '{dst}' file")
 
     def preprocess(self):
         df = self._merge()
         df = self._clean(df)
         df = self._fe(df)
+        df = utils.orderdf(df)
 
         dst = os.path.join(self.output, "dataset.csv")
         df.to_csv(dst)
-        print(f"Final dataframe '{dst}' is ready :)")
+        logger.info(f"Final dataframe '{dst}' is ready :)")
 
         return df
 
@@ -53,7 +57,7 @@ class Source:
             tmp.timestamp = pd.to_datetime(tmp.timestamp, format="%Y-%m-%d")
 
             df = pd.merge(df, tmp, how="left", on="timestamp")
-            print(f"Merging '{file}'")
+            logger.info(f"Merging '{file}'")
 
         df.timestamp = pd.to_datetime(df.timestamp, format="%Y-%m-%d %H:%M:%S")
         df = df.set_index("timestamp")

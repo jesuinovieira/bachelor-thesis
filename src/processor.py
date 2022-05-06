@@ -11,12 +11,11 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVR
 
 import src.utils
-
-# TODO: orchestrate model training (googleit)
+import src.tscv as tscv
 
 
 class Processor:
-    def __init__(self, name, df, dbname, vm, trainw, n_splits):
+    def __init__(self, name, df, vm, trainw, n_splits, output):
         self._name = name
         self.method = None
         self.model = None
@@ -30,19 +29,15 @@ class Processor:
         self.trainw = trainw
         self.n_splits = n_splits
         self.pr = ProcessorResults(
-            self._name, self.model, self.vm, self.trainw, self.n_splits, dbname
+            self._name, self.model, self.vm, self.trainw, self.n_splits, path=output
         )
-
-        # Order columns in dataframe
-        attr = src.utils.fs2attributes[dbname]
-        self.df = self.df[attr]
 
         # Initialize cross validator object
         length = len(self.df.index)
 
         # from sklearn.model_selection import TimeSeriesSplit
         # self.tscv = TimeSeriesSplit(n_splits=self.n_splits)
-        vm = src.utils.ExpandingWindow if self.vm == "EW" else src.utils.SlidingWindow
+        vm = tscv.ExpandingWindow if self.vm == "EW" else tscv.SlidingWindow
         self.tscv = vm(length, self.n_splits, self.trainw)
 
     def transform(self):
@@ -87,8 +82,8 @@ class Processor:
             # try:
             #     assert round(mape, 10) == round(sklearnmape, 10)
             # except AssertionError as err:
-            #     print(err)
-            #     print(mape, sklearnmape)
+            #     logger.info(err)
+            #     logger.info(mape, sklearnmape)
             # --------------------------------------------------------------------------
 
             # Save results
@@ -109,17 +104,14 @@ class Processor:
 
 
 class ProcessorResults:
-    def __init__(
-        self, name, model, vm, trainw, n_splits, dbname, path="output/processor"
-    ):
-        self.id = f"{dbname}-{name}-{vm}-{trainw}-{n_splits}"
+    def __init__(self, name, model, vm, trainw, n_splits, path):
+        self.id = f"{name}-{vm}-{trainw}-{n_splits}"
         self.model = model
         self.output = path
 
         self.vm = vm  # Validation method
         self.trainw = trainw  # Train window
         self.n_splits = n_splits  # Number of splits for cross validation
-        self.dbname = dbname  # Database name
 
         self.yhat = np.array([], dtype=float)
         self.ytrue = np.array([], dtype=float)
@@ -159,8 +151,8 @@ class ProcessorResults:
 
 
 class LRProcessor(Processor):
-    def __init__(self, id, df, dbname, vm, trainw, testw):
-        super().__init__(id, df, dbname, vm, trainw, testw)
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = LinearRegression
         self.defaults = dict()
         self.space = {"fit_intercept": [True, False]}
@@ -168,8 +160,8 @@ class LRProcessor(Processor):
 
 
 class KNNProcessor(Processor):
-    def __init__(self, id, df, dbname, vm, trainw, testw):
-        super().__init__(id, df, dbname, vm, trainw, testw)
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = KNeighborsRegressor
         self.defaults = dict(metric="minkowski", p=2, weights="distance")
         self.space = dict(n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19])
@@ -177,8 +169,8 @@ class KNNProcessor(Processor):
 
 
 class SVRProcessor(Processor):
-    def __init__(self, id, df, dbname, vm, trainw, testw):
-        super().__init__(id, df, dbname, vm, trainw, testw)
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = SVR
         self.defaults = dict()
         self.space = dict(
@@ -192,8 +184,8 @@ class SVRProcessor(Processor):
 
 
 class MLPProcessor(Processor):
-    def __init__(self, id, df, dbname, vm, trainw, testw):
-        super().__init__(id, df, dbname, vm, trainw, testw)
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = MLPRegressor
         self.defaults = dict(shuffle=False, verbose=False, random_state=1)
 

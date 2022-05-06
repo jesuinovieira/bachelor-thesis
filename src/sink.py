@@ -12,23 +12,8 @@ from sklearn.metrics import r2_score
 import src.plot as plot
 
 
-# TODO:
-#  - Create a single lineofbests with all best models
-#  - Add tables (research on google: how to plot table in python)
-#  - Get methods from config?
-#  - List comprehension in getpredictions
-#  + Save historical data with ProcessorResults
-#  + Add historical data to plots (?)
-
-# TODO: Evaluation report
-#  - Performance of an established metric on a validation dataset
-#  - Plots such as precision-recall curves
-#  - Operational statistics such as inference speed
-#  - Examples where the model was most confidently incorrect
-#  - Save all of the hyper-parameters used to train the model
-
 class Sink:
-    def __init__(self, prs, path="output/sink"):
+    def __init__(self, prs, path):
         if not os.path.isdir(path):
             os.makedirs(path, exist_ok=True)
 

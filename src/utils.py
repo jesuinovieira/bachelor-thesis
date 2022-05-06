@@ -109,34 +109,6 @@ def validate(dataframe):
     return True
 
 
-def cvsplit(trainw, testw, vm, df):
-    n = len(df)
-    data = df.to_numpy()
-
-    for i in range(trainw, n, testw):
-        trainidxs = slice(i - trainw if vm == "SW" else 0, i)
-        testidxs = slice(i, i + testw)
-
-        # print(f"Train: {trainidxs}")
-        # print(f"Test: {testidxs}")
-
-        # Train and test split
-        train = data[trainidxs]
-        test = data[testidxs]
-
-        # Rescale the data
-        # scaler = MinMaxScaler()
-        # scaler.fit(train)
-        # train = scaler.transform(train)
-        # test = scaler.transform(test)
-
-        # Split input (X) and output (y) vectors
-        X_train, y_train = train[:, 1:], train[:, 0].T
-        X_test, y_test = test[:, 1:], test[:, 0].T
-
-        yield X_train, X_test, y_train, y_test
-
-
 def rescaletarget(scaler, y):
     # Scaler was build with a dataframe, and now we want to rescale only the target
     n = scaler.n_features_in_ - 1
@@ -156,50 +128,17 @@ def df2np(df):
     return X, y
 
 
-class SlidingWindow:
-    def __init__(self, n_samples, n_splits, trainw):
-        self.n_samples = n_samples
-        self.n_splits = n_splits
+def orderdf(df):
+    # Subsets
+    # DS1: complete database
+    # DS2: meteorological attributes
+    # DS3: attributes derived from timestamp
+    # DS4: holidays and school recess attributes
+    # NOTE: only FS1 is being used now!
+    subset = "FS1"
+    attributes = fs2attributes[subset]
 
-        self.trainw = trainw if trainw else n_samples // n_splits
-        self.testw = (n_samples - trainw) // n_splits
+    df = df.drop(columns=[col for col in df if col not in attributes])
+    df = df[attributes]
 
-    def split(self, X, y=None, groups=None):
-        for i, k in enumerate(range(self.trainw, self.n_samples, self.testw)):
-            trainidxs = slice(k - self.trainw, k)
-            testidxs = slice(k, k + self.testw)
-
-            if i + 1 == self.n_splits:
-                testidxs = slice(k, self.n_samples)
-
-            yield trainidxs, testidxs
-
-            if i + 1 == self.n_splits:
-                break
-
-    def get_n_splits(self, X=None, y=None, groups=None):
-        return self.n_splits
-
-
-class ExpandingWindow:
-    def __init__(self, n_samples, n_splits, trainw):
-        self.n_samples = n_samples
-        self.n_splits = n_splits
-        self.trainw = trainw
-        self.testw = (n_samples - trainw) // n_splits
-
-    def split(self, X, y=None, groups=None):
-        for i, k in enumerate(range(self.trainw, self.n_samples, self.testw)):
-            trainidxs = slice(0, k)
-            testidxs = slice(k, k + self.testw)
-
-            if i + 1 == self.n_splits:
-                testidxs = slice(k, self.n_samples)
-
-            yield trainidxs, testidxs
-
-            if i + 1 == self.n_splits:
-                break
-
-    def get_n_splits(self, X=None, y=None, groups=None):
-        return self.n_splits
+    return df.copy()
