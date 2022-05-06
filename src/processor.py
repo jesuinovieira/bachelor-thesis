@@ -1,3 +1,4 @@
+import logging
 import os
 import pickle
 
@@ -12,6 +13,8 @@ from sklearn.svm import SVR
 
 import src.utils
 import src.tscv as tscv
+
+logger = logging.getLogger(__name__)
 
 
 class Processor:
@@ -55,6 +58,7 @@ class Processor:
             # verbose=True
         )
         result = search.fit(X, y)
+        logger.info(f"Best params for '{self._name}': {result.best_params_}")
 
         # Get y_true and y_hat for each cross validation iteration
         # Only works because each split is always equal, different from KFoldValidation
