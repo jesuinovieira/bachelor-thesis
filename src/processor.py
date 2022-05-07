@@ -93,9 +93,12 @@ class Processor:
         rows, _ = X_train.shape
         self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
+        # fmt: off
         search = GridSearchCV(
-            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs
+            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs,
+            verbose=10
         )
+        # fmt: on
         result = search.fit(X_train, y_train)
 
         # Fit selected model in train data
@@ -129,6 +132,7 @@ class Processor:
         return self.pr
 
     def crossvalidate(self, X, y, result):
+        # TODO: move to utils
         # Get y_true and y_hat for each cross validation iteration. Because of temporal
         # dependency, each split is always equal
         idxs = np.array([], dtype=int)
@@ -147,12 +151,7 @@ class Processor:
             model.fit(X_train, y_train)
 
             # Predict values
-            # FIXME: ValueError: Found array with 0 sample(s) (shape=(0, 17)) while a
-            #  minimum of 1 is required.
-            try:
-                y_hat = model.predict(X_test)
-            except ValueError as err:
-                print()
+            y_hat = model.predict(X_test)
 
             # TODO: assert fold results are the same
 
@@ -169,6 +168,152 @@ class Processor:
 
     def predict(self, X):
         return self.model.predict(X)
+
+
+# NOTE: Ordinary Least Squares
+class LRProcessor(Processor):
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
+        self.method = LinearRegression
+        self.defaults = dict(fit_intercept=True, normalize=False)
+        self.space = dict()
+        self.model = LinearRegression(**self.defaults)
+
+
+class KNNProcessor(Processor):
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
+        self.method = KNeighborsRegressor
+        self.defaults = dict(algorithm="auto")
+
+        # Note: a escolha da proximidade utilizada é fundamental para o kNN!
+        #
+        # Defaults are: metric="minkowski", p=2,
+        # Euclidean, manhattan, minkowski
+
+        self.space = dict(
+            n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
+            weights=["uniform", "distance"],
+            # metric=["euclidean", "l1", "l2", "manhattan", "minkowski"],
+            metric=[
+                "euclidean", "l2", "l1", "manhattan", "cityblock", "braycurtis",
+                "canberra", "chebyshev", "correlation", "cosine", "hamming",
+                "minkowski", "nan_euclidean",
+                # "haversine" (only valid for 2d)
+                # "wminkowski" (requires a weight vector `w` to be given)
+                # "yule" (data was converted to boolean)
+                # "sokalsneath" (data was converted to boolean)
+                # "sokalmichener" (data was converted to boolean)
+                # "sqeuclidean" ('V' parameter is required when Y is passed)
+                # "russellrao" (data was converted to boolean)
+                # "rogerstanimoto" (data was converted to boolean)
+                # "seuclidean" ('V' parameter is required when Y is passed)
+                # "matching" (data was converted to boolean)
+                # "mahalanobis" ('VI' parameter is required when Y is passed)
+                # "kulsinski" (data was converted to boolean)
+                # "jaccard" (data was converted to boolean)
+                # "dice" (data was converted to boolean)
+            ]
+        )
+        self.model = KNeighborsRegressor(**self.defaults)
+
+
+class SVRProcessor(Processor):
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
+        self.method = SVR
+        self.defaults = dict(cache_size=500)
+
+        # NOTE: complete
+        # self.space = dict(
+        #     C=[0.05, 0.1, 0.5, 1],
+        #     epsilon=[0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
+        #     gamma=[0.0001, 0.001],
+        #     kernel=["linear", "poly", "rbf", "sigmoid"],
+        # )
+
+        # TODO: improve epsilon, gamma and tol (?)
+        # https://scikit-learn.org/stable/auto_examples/svm/plot_rbf_parameters.html#sphx-glr-auto-examples-svm-plot-rbf-parameters-py
+        # - C: if you have a lot of noisy observations you should decrease it.
+        #   Decreasing C corresponds to more regularization
+        # - One is advised to use GridSearchCV with C and gamma spaced exponentially far
+        #   apart to choose good values
+        # - In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient
+        # - 'gamma': [1e-7, 1e-4],'epsilon':[0.1,0.2,0.5,0.3]
+
+        # NOTE: complete
+        self.space = dict(
+            kernel=["linear", "poly", "rbf", "sigmoid"],
+            C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5],
+            epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+            gamma=["scale", "auto"],
+            tol=[1e-3]
+        )
+
+        self.model = SVR(**self.defaults)
+
+
+class MLPProcessor(Processor):
+    def __init__(self, id, df, vm, trainw, n_splits, output):
+        super().__init__(id, df, vm, trainw, n_splits, output)
+        self.method = MLPRegressor
+        self.defaults = dict(shuffle=False, random_state=16)
+
+        # NOTE: complete
+        # self.space = dict(
+        #     hidden_layer_sizes=[
+        #         # (8,), (16,), (32,),
+        #         # (8, 2), (16, 2), (32, 2),
+        #         # (8, 4), (16, 4), (32, 4),
+        #         # (8, 8), (16, 8), (32, 8),
+        #
+        #         (13,), (13, 2),
+        #     ],
+        #     activation=["logistic", "tanh", "relu"],
+        #     solver=["lbfgs", "sgd", "adam"],
+        #     # alpha=[0.0001, 0.05, 0.01, 0.1],
+        #     alpha=[0.0001, 0.001],
+        #     learning_rate=["constant", "invscaling", "adaptive"],
+        #     # learning_rate_init=[0.001, 0.05, 0.01, 0.1],
+        #     learning_rate_init=[0.0001, 0.001],
+        #     max_iter=[1000],
+        #     tol=[1e-4],
+        #     # momentum=[0.9, 0.99],
+        #     momentum=[0.9],
+        #     early_stopping=[True],
+        # )
+
+        # https://scikit-learn.org/stable/modules/neural_networks_supervised.html#mlp-tips
+        # https://scikit-learn.org/stable/auto_examples/neural_networks/plot_mlp_alpha.html#sphx-glr-auto-examples-neural-networks-plot-mlp-alpha-py
+
+        # Hence do not loop through with different max_iterations, try to tweak the tol
+        # and n_iter_no_change if you want to avoid the overfitting.
+
+        # Best params for 'MLP1': {
+        #   'activation': 'relu', 'alpha': 0.1, 'early_stopping': True,
+        #   'hidden_layer_sizes': (21,), 'learning_rate': 'constant',
+        #   'learning_rate_init': 0.001, 'max_iter': 500, 'momentum': 0.9,
+        #   'n_iter_no_change': 10, 'solver': 'lbfgs', 'tol': 0.0001
+        # }
+
+        self.space = dict(
+            hidden_layer_sizes=[(13,), (21,), (29,)],
+            activation=["logistic", "tanh", "relu"],
+            solver=["lbfgs", "sgd", "adam"],
+            # alpha=[10.0 ** np.arange(1, 7)],
+            alpha=list(np.logspace(-1, 1, 5)),
+            momentum=[0.9, 0.95],
+
+            learning_rate=["constant", "invscaling", "adaptive"],
+            learning_rate_init=[0.001, 0.01, 0.05],
+
+            max_iter=[500],
+            n_iter_no_change=[10],
+            tol=[1e-4],
+            early_stopping=[True],
+        )
+
+        self.model = MLPRegressor(**self.defaults)
 
 
 class ProcessorResults:
@@ -211,91 +356,3 @@ class ProcessorResults:
 
     def getdst(self):
         return os.path.join(self.output, f"{self.id}.pickle")
-
-
-class LRProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
-        self.method = LinearRegression
-        self.defaults = dict()
-        self.space = {"fit_intercept": [True, False]}
-        self.model = LinearRegression(**self.defaults)
-
-
-class KNNProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
-        self.method = KNeighborsRegressor
-        self.defaults = dict(metric="minkowski", p=2, weights="distance")
-        self.space = dict(n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27])
-        self.model = KNeighborsRegressor(**self.defaults)
-
-
-class SVRProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
-        self.method = SVR
-        self.defaults = dict()
-
-        # NOTE: complete
-        # self.space = dict(
-        #     C=[0.05, 0.1, 0.5, 1],
-        #     epsilon=[0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
-        #     gamma=[0.0001, 0.001],
-        #     kernel=["linear", "poly", "rbf", "sigmoid"],
-        # )
-
-        # NOTE: partial
-        self.space = dict(
-            C=[0.1, 0.5, 1.0],
-            epsilon=[0.0001, 0.01, 0.1, 1.0],
-            gamma=[0.0001, 0.001],
-            kernel=["linear", "poly", "rbf", "sigmoid"],
-        )
-
-        self.model = SVR(**self.defaults)
-
-
-class MLPProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
-        self.method = MLPRegressor
-        self.defaults = dict(shuffle=False, verbose=False, random_state=1)
-
-        # NOTE: complete
-        # self.space = dict(
-        #     hidden_layer_sizes=[
-        #         # (8,), (16,), (32,),
-        #         # (8, 2), (16, 2), (32, 2),
-        #         # (8, 4), (16, 4), (32, 4),
-        #         # (8, 8), (16, 8), (32, 8),
-        #
-        #         (13,), (13, 2),
-        #     ],
-        #     activation=["logistic", "tanh", "relu"],
-        #     solver=["lbfgs", "sgd", "adam"],
-        #     # alpha=[0.0001, 0.05, 0.01, 0.1],
-        #     alpha=[0.0001, 0.001],
-        #     learning_rate=["constant", "invscaling", "adaptive"],
-        #     # learning_rate_init=[0.001, 0.05, 0.01, 0.1],
-        #     learning_rate_init=[0.0001, 0.001],
-        #     max_iter=[1000],
-        #     tol=[1e-4],
-        #     # momentum=[0.9, 0.99],
-        #     momentum=[0.9],
-        #     early_stopping=[True],
-        # )
-
-        # NOTE: partial
-        self.space = dict(
-            hidden_layer_sizes=[(13,), (21,), (29,)],
-            activation=["logistic", "tanh", "relu"],
-            solver=["adam"],
-            learning_rate_init=[0.001, 0.01],
-            max_iter=[1000],
-            tol=[1e-4],
-            momentum=[0.9],
-            early_stopping=[True],
-        )
-
-        self.model = MLPRegressor(**self.defaults)
