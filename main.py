@@ -11,10 +11,6 @@ import callback
 import manual
 from src import KDDPipeline
 
-now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-CFGFILE = "config.json"
-OUTFOLDER = os.path.join("output", now)
-
 
 def setuplogger(file):
     for handler in logging.root.handlers[:]:
@@ -38,13 +34,9 @@ def setuplogger(file):
     return logging.getLogger(__name__)
 
 
-def main():
-    src = CFGFILE
-    dst = os.path.join(OUTFOLDER, CFGFILE)
-    shutil.copyfile(src, dst)
-
-    with open(CFGFILE) as file:
-        config = json.load(file)
+def main(cfgfile):
+    with open(cfgfile) as file:
+        cfg = json.load(file)
 
     callbacks = (
         partial(callback.waterproduced, "data/external/VP UFPR GTBA.xlsx"),
@@ -61,7 +53,7 @@ def main():
         ),
     )
 
-    kdd = KDDPipeline(config=config, output=OUTFOLDER)
+    kdd = KDDPipeline(config=cfg, output=outfolder)
     kdd.select(callbacks)
     kdd.preprocess()
     kdd.transform()
@@ -70,21 +62,34 @@ def main():
 
 
 if __name__ == "__main__":
-    if not os.path.isdir(OUTFOLDER):
-        os.makedirs(OUTFOLDER, exist_ok=True)
+    cfgfolder = "multicfg"
+    configs = os.listdir(cfgfolder)
 
-    logfile = os.path.join(OUTFOLDER, "output.log")
-    logger = setuplogger(logfile)
+    for config in configs:
+        now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        outfolder = os.path.join("output", now)
 
-    start = time.time()
-    main()
-    end = time.time()
-    delta = end - start
+        config = os.path.join(cfgfolder, config)
 
-    den, unit = 1, "seconds"
-    if delta >= 60:
-        den, unit = 60, "minutes"
-    if delta >= 3600:
-        den, unit = 3600, "hours"
+        if not os.path.isdir(outfolder):
+            os.makedirs(outfolder, exist_ok=True)
 
-    logger.info(f"Elapsed time: {round(delta / den, 2)} {unit}")
+        src = config
+        dst = os.path.join(outfolder, os.path.basename(src))
+        shutil.copyfile(src, dst)
+
+        logfile = os.path.join(outfolder, "output.log")
+        logger = setuplogger(logfile)
+
+        start = time.time()
+        main(config)
+        end = time.time()
+        delta = end - start
+
+        den, unit = 1, "seconds"
+        if delta >= 60:
+            den, unit = 60, "minutes"
+        if delta >= 3600:
+            den, unit = 3600, "hours"
+
+        logger.info(f"Elapsed time: {round(delta / den, 2)} {unit}")
