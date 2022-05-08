@@ -77,7 +77,7 @@ class Sink:
 
         df = pd.concat([lr, knn, svr, mlp])
 
-        title = f"Model with max {self.metric.upper()} of each method"
+        title = f"Model with min {self.metric.upper()} of each method"
         axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
 
         for ax in axes.flatten():

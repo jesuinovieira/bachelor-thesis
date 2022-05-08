@@ -1,0 +1,23 @@
+{
+    "kdd": {
+        "select": false,
+        "preprocess": true,
+        "transform": true,
+        "fit": true,
+        "evaluate": true
+    },
+    "source": {
+        "raw-folder": "data/raw",
+        "preprocessed-folder": "data/cache",
+        "output-folder": "data"
+    },
+    "processor": {
+        "methods": ["LR", "KNN", "SVR", "MLP"],
+        "cv-window": ["TSS", "SW", "EW"],
+        "train-window": [729],
+        "n-splits": [12, 24, 48]
+    },
+    "dev": {
+        "oldfit": false
+    }
+}

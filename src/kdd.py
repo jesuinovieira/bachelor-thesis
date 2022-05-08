@@ -41,6 +41,9 @@ class KDDPipeline:
         self.df = self.df.set_index("timestamp")
 
     def _getprs(self):
+        # FIXME: deprecated
+        logger.error(f"Deprecated")
+
         for processor in self._processor:
             dst = processor.pr.getdst()
             with open(dst, "rb") as f:
@@ -64,16 +67,6 @@ class KDDPipeline:
         self.df = self._source.preprocess()
 
     def transform(self):
-        # ==============================================================================
-        # SSA
-        # from .ssa import SSA
-        # tseries = self.df.water_produced.to_numpy()
-        # L = 2  # Window length: 2 <= L <= N / 2
-        # r = 0  # Elementary components to sum
-        # new = SSA(tseries, L).reconstruct(r)
-        # self.df.water_produced = new
-        # ==============================================================================
-
         output = os.path.join(self.output, "processor")
         processors = _getprocessors(self.config["processor"], self.df.copy(), output)
         self._processor.extend(processors)
@@ -92,8 +85,12 @@ class KDDPipeline:
 
         logger.info(f"[4/5] Data Mining")
         for processor in self._processor:
-            logger.info(f"Fitting '{processor._name}' model")
-            processor.fit()
+            logger.info(f"Fitting '{processor.pr.id}' model")
+
+            if self.config["dev"]["oldfit"]:
+                processor.oldfit()
+            else:
+                processor.fit()
 
     def evaluate(self):
         if not self.config["kdd"]["evaluate"]:

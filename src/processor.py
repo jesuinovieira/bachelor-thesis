@@ -10,6 +10,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
@@ -40,10 +41,12 @@ class Processor:
             self._name, self.model, self.vm, self.trainw, self.n_splits, path=output
         )
 
-        # TODO: choose based on self.vm
-        # from sklearn.model_selection import TimeSeriesSplit
-        # self.tscv = TimeSeriesSplit(n_splits=self.n_splits)
-        self.tscv = tscv.ExpandingWindow if self.vm == "EW" else tscv.SlidingWindow
+        if self.vm == "TSS":
+            self.tscv = TimeSeriesSplit
+        if self.vm == "EW":
+            self.tscv = tscv.ExpandingWindow
+        if self.vm == "SW":
+            self.tscv = tscv.SlidingWindow
 
     def transform(self):
         self._scaler.fit(self.df)
@@ -56,7 +59,11 @@ class Processor:
         n_jobs = -1
         scoring = "neg_root_mean_squared_error"
         rows, _ = X.shape
-        self.tscv = self.tscv(rows, self.n_splits, self.trainw)
+
+        if self.vm == "TSS":
+            self.tscv = self.tscv(n_splits=self.n_splits)
+        else:
+            self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
         search = GridSearchCV(
             self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs
@@ -90,8 +97,18 @@ class Processor:
         # Model selection
         n_jobs = -1
         scoring = "neg_root_mean_squared_error"
+        # TODO: multiple scores
+        # scoring = [
+        #     "neg_root_mean_squared_error",
+        #     "neg_mean_absolute_percentage_error",
+        #     "r2_score"
+        # ]
         rows, _ = X_train.shape
-        self.tscv = self.tscv(rows, self.n_splits, self.trainw)
+
+        if self.vm == "TSS":
+            self.tscv = self.tscv(n_splits=self.n_splits)
+        else:
+            self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
         # fmt: off
         search = GridSearchCV(
@@ -108,16 +125,15 @@ class Processor:
         # Evaluate on test data
         y_hat = model.predict(X_test)
 
+        logger.info(f"Best params for '{self._name}': {result.best_params_}")
+        _fold, _ytrue, _yhat, _timestamp = self.crossvalidate(X_train, y_train, result)
+
         self.pr.add(
             split=np.full(shape=y_hat.size, fill_value=0),
             yhat=src.utils.rescaletarget(self._scaler, y_hat),
             ytrue=src.utils.rescaletarget(self._scaler, y_test),
             timestamp=test.index.to_numpy()
         )
-
-        logger.info(f"Best params for '{self._name}': {result.best_params_}")
-
-        _, _ytrue, _yhat, _ = self.crossvalidate(X_train, y_train, result)
 
         rmse = round(mean_squared_error(_ytrue, _yhat, squared=False), 3)
         mape = round(mean_absolute_percentage_error(_ytrue, _yhat), 3)
@@ -175,7 +191,7 @@ class LRProcessor(Processor):
     def __init__(self, id, df, vm, trainw, n_splits, output):
         super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = LinearRegression
-        self.defaults = dict(fit_intercept=True, normalize=False)
+        self.defaults = dict(fit_intercept=True)
         self.space = dict()
         self.model = LinearRegression(**self.defaults)
 
