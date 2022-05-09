@@ -202,15 +202,10 @@ class KNNProcessor(Processor):
         self.method = KNeighborsRegressor
         self.defaults = dict(algorithm="auto")
 
-        # Note: a escolha da proximidade utilizada é fundamental para o kNN!
-        #
-        # Defaults are: metric="minkowski", p=2,
-        # Euclidean, manhattan, minkowski
-
+        # NOTE: A escolha da proximidade utilizada é fundamental para o kNN!
         self.space = dict(
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
             weights=["uniform", "distance"],
-            # metric=["euclidean", "l1", "l2", "manhattan", "minkowski"],
             metric=[
                 "euclidean", "l2", "l1", "manhattan", "cityblock", "braycurtis",
                 "canberra", "chebyshev", "correlation", "cosine", "hamming",
@@ -240,14 +235,6 @@ class SVRProcessor(Processor):
         self.method = SVR
         self.defaults = dict(cache_size=500)
 
-        # NOTE: complete
-        # self.space = dict(
-        #     C=[0.05, 0.1, 0.5, 1],
-        #     epsilon=[0.0001, 0.001, 0.01, 0.05, 0.1, 0.5, 1.0],
-        #     gamma=[0.0001, 0.001],
-        #     kernel=["linear", "poly", "rbf", "sigmoid"],
-        # )
-
         # TODO: improve epsilon, gamma and tol (?)
         # https://scikit-learn.org/stable/auto_examples/svm/plot_rbf_parameters.html#sphx-glr-auto-examples-svm-plot-rbf-parameters-py
         # - C: if you have a lot of noisy observations you should decrease it.
@@ -257,14 +244,21 @@ class SVRProcessor(Processor):
         # - In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient
         # - 'gamma': [1e-7, 1e-4],'epsilon':[0.1,0.2,0.5,0.3]
 
-        # NOTE: complete
         self.space = dict(
             kernel=["linear", "poly", "rbf", "sigmoid"],
-            C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5],
-            epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+            C=[0.1, 0.5, 1.0, 1.5, 2.0],
+            epsilon=[0.01, 0.05, 0.1],
             gamma=["scale", "auto"],
             tol=[1e-3]
         )
+
+        # self.space = dict(
+        #     kernel=["linear", "poly", "rbf", "sigmoid"],
+        #     C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
+        #     epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+        #     gamma=["scale", "auto"],
+        #     tol=[1e-3]
+        # )
 
         self.model = SVR(**self.defaults)
 
@@ -275,59 +269,53 @@ class MLPProcessor(Processor):
         self.method = MLPRegressor
         self.defaults = dict(shuffle=False, random_state=16)
 
-        # NOTE: complete
-        # self.space = dict(
-        #     hidden_layer_sizes=[
-        #         # (8,), (16,), (32,),
-        #         # (8, 2), (16, 2), (32, 2),
-        #         # (8, 4), (16, 4), (32, 4),
-        #         # (8, 8), (16, 8), (32, 8),
-        #
-        #         (13,), (13, 2),
-        #     ],
-        #     activation=["logistic", "tanh", "relu"],
-        #     solver=["lbfgs", "sgd", "adam"],
-        #     # alpha=[0.0001, 0.05, 0.01, 0.1],
-        #     alpha=[0.0001, 0.001],
-        #     learning_rate=["constant", "invscaling", "adaptive"],
-        #     # learning_rate_init=[0.001, 0.05, 0.01, 0.1],
-        #     learning_rate_init=[0.0001, 0.001],
-        #     max_iter=[1000],
-        #     tol=[1e-4],
-        #     # momentum=[0.9, 0.99],
-        #     momentum=[0.9],
-        #     early_stopping=[True],
-        # )
-
         # https://scikit-learn.org/stable/modules/neural_networks_supervised.html#mlp-tips
         # https://scikit-learn.org/stable/auto_examples/neural_networks/plot_mlp_alpha.html#sphx-glr-auto-examples-neural-networks-plot-mlp-alpha-py
-
+        #
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
 
-        # Best params for 'MLP1': {
-        #   'activation': 'relu', 'alpha': 0.1, 'early_stopping': True,
-        #   'hidden_layer_sizes': (21,), 'learning_rate': 'constant',
-        #   'learning_rate_init': 0.001, 'max_iter': 500, 'momentum': 0.9,
-        #   'n_iter_no_change': 10, 'solver': 'lbfgs', 'tol': 0.0001
-        # }
-
         self.space = dict(
-            hidden_layer_sizes=[(13,), (21,), (29,)],
-            activation=["logistic", "tanh", "relu"],
-            solver=["lbfgs", "sgd", "adam"],
-            # alpha=[10.0 ** np.arange(1, 7)],
-            alpha=list(np.logspace(-1, 1, 5)),
-            momentum=[0.9, 0.95],
+            hidden_layer_sizes=[(13,)],
+            activation=["tanh", "relu"],
+            solver=["lbfgs"],
+            alpha=[0.05, 0.1],
+            momentum=[0.9],
 
-            learning_rate=["constant", "invscaling", "adaptive"],
-            learning_rate_init=[0.001, 0.01, 0.05],
+            learning_rate=["constant"],
+            learning_rate_init=[0.005, 0.001],
 
             max_iter=[500],
             n_iter_no_change=[10],
             tol=[1e-4],
             early_stopping=[True],
         )
+
+        # hidden_layer_sizes=[
+        #     # (8,), (16,), (32,),
+        #     # (8, 2), (16, 2), (32, 2),
+        #     # (8, 4), (16, 4), (32, 4),
+        #     # (8, 8), (16, 8), (32, 8),
+        #
+        #     (13,), (13, 2),
+        # ],
+        #
+        # self.space = dict(
+        #     hidden_layer_sizes=[(13,), (21,), (29,)],
+        #     activation=["logistic", "tanh", "relu"],
+        #     solver=["lbfgs", "sgd", "adam"],
+        #     # alpha=[10.0 ** np.arange(1, 7)],
+        #     alpha=list(np.logspace(-1, 1, 5)),
+        #     momentum=[0.9, 0.95],
+        #
+        #     learning_rate=["constant", "invscaling", "adaptive"],
+        #     learning_rate_init=[0.001, 0.01, 0.05],
+        #
+        #     max_iter=[500],
+        #     n_iter_no_change=[10],
+        #     tol=[1e-4],
+        #     early_stopping=[True],
+        # )
 
         self.model = MLPRegressor(**self.defaults)
 
