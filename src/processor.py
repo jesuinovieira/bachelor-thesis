@@ -76,10 +76,10 @@ class Processor:
         folds, ytrue, yhat, timestamps = self.crossvalidate(X, y, result)
         self.pr.add(split=folds, yhat=yhat, ytrue=ytrue, timestamp=timestamps)
 
-        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 3)
-        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 3)
-        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 3)
-        logger.info(f"[val/test] RMSE={rmse}, MAPE={mape:.3f}, R2={r2:.3f}")
+        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 2)
+        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
+        logger.info(f"[val/test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
         return self.pr
 
@@ -135,15 +135,15 @@ class Processor:
             timestamp=test.index.to_numpy()
         )
 
-        rmse = round(mean_squared_error(_ytrue, _yhat, squared=False), 3)
-        mape = round(mean_absolute_percentage_error(_ytrue, _yhat), 3)
-        r2 = round(r2_score(_ytrue, _yhat), 3)
-        logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.3f}, R2={r2:.3f}")
+        rmse = round(mean_squared_error(_ytrue, _yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(_ytrue, _yhat), 2)
+        r2 = round(r2_score(_ytrue, _yhat), 2)
+        logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
-        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 3)
-        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 3)
-        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 3)
-        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.3f}, R2={r2:.3f}")
+        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 2)
+        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
+        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
         return self.pr
 
