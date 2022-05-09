@@ -74,7 +74,7 @@ class Processor:
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
 
         folds, ytrue, yhat, timestamps = self.crossvalidate(X, y, result)
-        self.pr.add(folds, ytrue, yhat, timestamps)
+        self.pr.add(split=folds, yhat=yhat, ytrue=ytrue, timestamp=timestamps)
 
         rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 3)
         mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 3)
