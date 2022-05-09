@@ -68,7 +68,8 @@ class KDDPipeline:
 
     def transform(self):
         output = os.path.join(self.output, "processor")
-        processors = _getprocessors(self.config["processor"], self.df.copy(), output)
+        # NOTE: _getprocessors creates a deep copy of the database for each model
+        processors = _getprocessors(self.config["processor"], self.df, output)
         self._processor.extend(processors)
 
         if not self.config["kdd"]["transform"]:
@@ -130,7 +131,7 @@ def _getprocessors(config, df, output):
         counter[method] += 1
         params = dict(
             id=f"{item[0]}{counter[method]}",
-            df=df,
+            df=df.copy(deep=True),
             vm=item[1],
             trainw=item[2],
             n_splits=item[3],
