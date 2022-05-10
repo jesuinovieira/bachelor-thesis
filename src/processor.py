@@ -58,15 +58,16 @@ class Processor:
         # Grid search with time series cross validation
         n_jobs = -1
         scoring = "neg_root_mean_squared_error"
-        rows, _ = X.shape
 
         if self.vm == "TSS":
             self.tscv = self.tscv(n_splits=self.n_splits)
         else:
+            rows, _ = X.shape
             self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
         search = GridSearchCV(
-            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs
+            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs,
+            verbose=10
         )
         result = search.fit(X, y)
 
@@ -81,6 +82,7 @@ class Processor:
         r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
         logger.info(f"[val/test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
+        self.pr.save()
         return self.pr
 
     def fit(self):
@@ -103,11 +105,11 @@ class Processor:
         #     "neg_mean_absolute_percentage_error",
         #     "r2_score"
         # ]
-        rows, _ = X_train.shape
 
         if self.vm == "TSS":
             self.tscv = self.tscv(n_splits=self.n_splits)
         else:
+            rows, _ = X_train.shape
             self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
         # fmt: off
@@ -128,7 +130,16 @@ class Processor:
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
         _fold, _ytrue, _yhat, _timestamp = self.crossvalidate(X_train, y_train, result)
 
+        # self.pr.add(
+        #     type="validation",
+        #     split=_fold,
+        #     yhat=_yhat,
+        #     ytrue=_ytrue,
+        #     timestamp=_timestamp
+        # )
+
         self.pr.add(
+            type="test",
             split=np.full(shape=y_hat.size, fill_value=0),
             yhat=src.utils.rescaletarget(self._scaler, y_hat),
             ytrue=src.utils.rescaletarget(self._scaler, y_test),
@@ -145,6 +156,7 @@ class Processor:
         r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
         logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
+        self.pr.save()
         return self.pr
 
     def crossvalidate(self, X, y, result):
@@ -156,8 +168,6 @@ class Processor:
         ytrue = np.array([], dtype=float)
         timestamps = np.array([], dtype=np.datetime64)
 
-        # 1092, 17
-        # 1092,
         for i, (trainidxs, testidxs) in enumerate(self.tscv.split(X, y)):
             X_train, X_test = X[trainidxs], X[testidxs]
             y_train, y_test = y[trainidxs], y[testidxs]
@@ -333,9 +343,11 @@ class ProcessorResults:
         self.yhat = np.array([], dtype=float)
         self.ytrue = np.array([], dtype=float)
         self.split = np.array([], dtype=int)
+        self.type = np.array([], dtype=str)
         self.timestamp = np.array([], dtype=np.datetime64)
 
-    def add(self, split, yhat, ytrue, timestamp):
+    def add(self, type, split, yhat, ytrue, timestamp):
+        self.type = np.append(self.type, np.full(yhat.size, fill_value=type))
         self.split = np.append(self.split, np.full(yhat.size, fill_value=split))
         self.yhat = np.append(self.yhat, yhat)
         self.ytrue = np.append(self.ytrue, ytrue)
@@ -346,7 +358,7 @@ class ProcessorResults:
             os.makedirs(self.output, exist_ok=True)
 
         # Create dataframe
-        data = {"ytrue": self.ytrue, "yhat": self.yhat, "split": self.split}
+        data = dict(ytrue=self.ytrue, yhat=self.yhat, split=self.split, type=self.type)
         df = pd.DataFrame(data=data, index=self.timestamp)
 
         # Save predictions
