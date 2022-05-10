@@ -1,3 +1,5 @@
+# TODO: make code reusable (SW and EW are very similar)
+
 class SlidingWindow:
     def __init__(self, n_samples, n_splits, trainw):
         self.n_samples = n_samples
@@ -5,6 +7,9 @@ class SlidingWindow:
 
         self.trainw = trainw if trainw else n_samples // n_splits
         self.testw = (n_samples - trainw) // n_splits
+
+        assert n_samples != self.trainw
+        assert self.testw > 0
 
     def split(self, X, y=None, groups=None):
         for i, k in enumerate(range(self.trainw, self.n_samples, self.testw)):
@@ -29,6 +34,9 @@ class ExpandingWindow:
         self.n_splits = n_splits
         self.trainw = trainw
         self.testw = (n_samples - trainw) // n_splits
+
+        assert n_samples != self.trainw
+        assert self.testw > 0
 
     def split(self, X, y=None, groups=None):
         for i, k in enumerate(range(self.trainw, self.n_samples, self.testw)):
