@@ -149,14 +149,18 @@ class Sink:
     def weekly(self, pdf):
         for method in self.methods:
             filtered = self._getbest(method)
+            if filtered.empty:
+                continue
 
-            mondays = np.where(filtered.index.weekday == 0)[0]
+            predictions = self._getpredictions(filtered.index[0])
+
+            mondays = np.where(predictions.index.weekday == 0)[0]
             mondays = np.random.choice(mondays, 4)
             fig, axes = plt.subplots(2, 2)
 
             for ax, startrow in zip(axes.flatten(), mondays):
                 endrow = startrow + 7
-                chunk = filtered.iloc[startrow:endrow, :]
+                chunk = predictions.iloc[startrow:endrow, :]
 
                 ls = ["--", "-"]
                 title = f"{chunk.index[0].date()} to {chunk.index[-1].date()}"
@@ -177,14 +181,18 @@ class Sink:
     def monthly(self, pdf):
         for method in self.methods:
             filtered = self._getbest(method)
+            if filtered.empty:
+                continue
 
-            firstday = np.where(filtered.index.day == 1)[0]
+            predictions = self._getpredictions(filtered.index[0])
+
+            firstday = np.where(predictions.index.day == 1)[0]
             firstday = np.random.choice(firstday, 4)
             fig, axes = plt.subplots(2, 2)
 
             for ax, startrow in zip(axes.flatten(), firstday):
                 endrow = startrow + 30
-                chunk = filtered.iloc[startrow:endrow, :]
+                chunk = predictions.iloc[startrow:endrow, :]
 
                 ls = ["--", "-"]
                 title = f"{chunk.index[0].strftime('%b')}"
