@@ -15,7 +15,7 @@
         "methods": ["LR", "KNN", "SVR", "MLP"],
         "cv-window": ["TSS", "SW", "EW"],
         "train-window": [729],
-        "n-splits": [12, 24, 48]
+        "n-splits": [12, 48]
     },
     "dev": {
         "oldfit": false
