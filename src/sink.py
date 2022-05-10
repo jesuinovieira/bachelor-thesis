@@ -11,6 +11,34 @@ from sklearn.metrics import r2_score
 
 import src.plot as plot
 
+# ======================================================================================
+# FIXME: worst and best are not of type datetime when calling dfpred.index[]
+# abserror = abs(dfpred.ytrue - dfpred.yhat)
+# idx = np.argsort(abserror)
+#
+# n = 10
+# best = idx[:n].to_list()
+# worst = np.flip(idx)[:n].to_list()
+#
+# plt.plot(
+#     dfpred.index[worst], dfpred.yhat[worst], linestyle="None", marker="o",
+#     color="tab:red"
+# )
+# plt.plot(
+#     dfpred.index[best], dfpred.yhat[best], linestyle="None", marker="o",
+#     color="tab:green"
+# )
+# ======================================================================================
+
+
+def _getmetrics(ytrue, yhat):
+    r2 = r2_score(ytrue, yhat)
+    mae = mean_absolute_error(ytrue, yhat)
+    mape = mean_absolute_percentage_error(ytrue, yhat)
+    rmse = mean_squared_error(ytrue, yhat, squared=False)
+
+    return r2, mae, mape, rmse
+
 
 class Sink:
     def __init__(self, prs, path):
@@ -21,6 +49,7 @@ class Sink:
         self.prs = prs
         self.output = path
         self.metric = "rmse"
+        self.methods = ["LR", "KNN", "SVR", "MLP"]
 
         self._prs2df()
 
@@ -29,7 +58,7 @@ class Sink:
         idx, r2, mae, mape, rmse = [], [], [], [], []
         for pr in self.prs:
             _idx = pr.id
-            _r2, _mae, _mape, _rmse = self.getmetrics(pr.ytrue, pr.yhat)
+            _r2, _mae, _mape, _rmse = _getmetrics(pr.ytrue, pr.yhat)
 
             idx.append(_idx)
             r2.append(_r2)
@@ -53,6 +82,22 @@ class Sink:
 
         return best
 
+    def _getbests(self):
+        lr = self._getbest("LR").head(1)
+        knn = self._getbest("KNN")
+        svr = self._getbest("SVR")
+        mlp = self._getbest("MLP")
+
+        return pd.concat([lr, knn, svr, mlp])
+
+    def _getpredictions(self, id):
+        for pr in self.prs:
+            if pr.id == id:
+                data = {"yhat": pr.yhat, "ytrue": pr.ytrue}
+                df = pd.DataFrame(data=data, index=pr.timestamp)
+                df.index = pd.to_datetime(df.index)
+                return df
+
     def evaluate(self, overview=True, detailed=True):
         output = f"{self.output}/output.pdf"
         with matplotlib.backends.backend_pdf.PdfPages(output) as pdf:
@@ -70,16 +115,12 @@ class Sink:
             self.monthly(pdf)
 
     def barofbests(self, pdf):
-        lr = self._getbest("LR")
-        knn = self._getbest("KNN")
-        svr = self._getbest("SVR")
-        mlp = self._getbest("MLP")
-
-        df = pd.concat([lr, knn, svr, mlp])
-
+        df = self._getbests()
         title = f"Model with min {self.metric.upper()} of each method"
-        axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
 
+        axes = df.plot.bar(
+            rot=0, grid=True, subplots=True, layout=(2, 2), title=title
+        )
         for ax in axes.flatten():
             for container in ax.containers:
                 ax.bar_label(container)
@@ -87,19 +128,14 @@ class Sink:
         plot.wrapup(pdf)
 
     def lineofbests(self, pdf):
-        tmp = []
-
-        methods = ["LR", "KNN", "SVR", "MLP"]
-        for method in methods:
+        for method in self.methods:
             # Select the model with best performance based on some metric
             filtered = self._getbest(method)
 
             if filtered.empty:
                 continue
 
-            dfpred = self.getpredictions(filtered.index[0])
-            tmp.append(dfpred)
-
+            dfpred = self._getpredictions(filtered.index[0])
             ls = ["--", "-"]
             ax = dfpred.plot(rot=0, grid=True, style=ls)
 
@@ -108,46 +144,19 @@ class Sink:
             #     line.set_marker(markers[i])
 
             plt.title(f"Best {method} method: {filtered.index[0]}")
-
-            # ==========================================================================
-            # FIXME: worst and best are not of type datetime when calling dfpred.index[]
-            # abserror = abs(dfpred.ytrue - dfpred.yhat)
-            # idx = np.argsort(abserror)
-            #
-            # n = 10
-            # best = idx[:n].to_list()
-            # worst = np.flip(idx)[:n].to_list()
-            #
-            # plt.plot(
-            #     dfpred.index[worst], dfpred.yhat[worst], linestyle="None", marker="o", color="tab:red"
-            # )
-            # plt.plot(
-            #     dfpred.index[best], dfpred.yhat[best], linestyle="None", marker="o", color="tab:green"
-            # )
-            # ==========================================================================
-
             plot.wrapup(pdf)
 
-    def getbestmodel(self):
-        methods = ["LR", "KNN", "SVR", "MLP"]
-        for method in methods:
-            # Select the model with best perfomance based on some metric
+    def weekly(self, pdf):
+        for method in self.methods:
             filtered = self._getbest(method)
 
-            if filtered.empty:
-                continue
-
-            yield method, self.getpredictions(filtered.index[0])
-
-    def weekly(self, pdf):
-        for method, df in self.getbestmodel():
-            mondays = np.where(df.index.weekday == 0)[0]
+            mondays = np.where(filtered.index.weekday == 0)[0]
             mondays = np.random.choice(mondays, 4)
             fig, axes = plt.subplots(2, 2)
 
             for ax, startrow in zip(axes.flatten(), mondays):
                 endrow = startrow + 7
-                chunk = df.iloc[startrow:endrow, :]
+                chunk = filtered.iloc[startrow:endrow, :]
 
                 ls = ["--", "-"]
                 title = f"{chunk.index[0].date()} to {chunk.index[-1].date()}"
@@ -166,14 +175,16 @@ class Sink:
             plot.wrapup(pdf)
 
     def monthly(self, pdf):
-        for method, df in self.getbestmodel():
-            firstday = np.where(df.index.day == 1)[0]
+        for method in self.methods:
+            filtered = self._getbest(method)
+
+            firstday = np.where(filtered.index.day == 1)[0]
             firstday = np.random.choice(firstday, 4)
             fig, axes = plt.subplots(2, 2)
 
             for ax, startrow in zip(axes.flatten(), firstday):
                 endrow = startrow + 30
-                chunk = df.iloc[startrow:endrow, :]
+                chunk = filtered.iloc[startrow:endrow, :]
 
                 ls = ["--", "-"]
                 title = f"{chunk.index[0].strftime('%b')}"
@@ -192,19 +203,3 @@ class Sink:
 
             fig.suptitle(f"Random monthly predictions")
             plot.wrapup(pdf)
-
-    def getpredictions(self, id):
-        for pr in self.prs:
-            if pr.id == id:
-                data = {"yhat": pr.yhat, "ytrue": pr.ytrue}
-                df = pd.DataFrame(data=data, index=pr.timestamp)
-                df.index = pd.to_datetime(df.index)
-                return df
-
-    def getmetrics(self, ytrue, yhat):
-        r2 = r2_score(ytrue, yhat)
-        mae = mean_absolute_error(ytrue, yhat)
-        mape = mean_absolute_percentage_error(ytrue, yhat)
-        rmse = mean_squared_error(ytrue, yhat, squared=False)
-
-        return r2, mae, mape, rmse
