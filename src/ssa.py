@@ -123,7 +123,7 @@ class SSA(object):
         F_wnorms = np.array(
             [inner(self.components[:, i], self.components[:, i]) for i in range(self.d)]
         )
-        F_wnorms = F_wnorms ** -0.5
+        F_wnorms = F_wnorms**-0.5
 
         # Calculate Wcorr
         self.wcorr = np.identity(self.d)

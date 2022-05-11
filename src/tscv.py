@@ -1,5 +1,6 @@
 # TODO: make code reusable (SW and EW are very similar)
 
+
 class SlidingWindow:
     def __init__(self, n_samples, n_splits, trainw):
         self.n_samples = n_samples

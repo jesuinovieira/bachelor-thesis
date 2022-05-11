@@ -118,9 +118,7 @@ class Sink:
         df = self._getbests()
         title = f"Model with min {self.metric.upper()} of each method"
 
-        axes = df.plot.bar(
-            rot=0, grid=True, subplots=True, layout=(2, 2), title=title
-        )
+        axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
         for ax in axes.flatten():
             for container in ax.containers:
                 ax.bar_label(container)

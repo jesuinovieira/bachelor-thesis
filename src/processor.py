@@ -66,8 +66,12 @@ class Processor:
             self.tscv = self.tscv(rows, self.n_splits, self.trainw)
 
         search = GridSearchCV(
-            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs,
-            verbose=10
+            self.model,
+            self.space,
+            cv=self.tscv,
+            scoring=scoring,
+            n_jobs=n_jobs,
+            verbose=10,
         )
         result = search.fit(X, y)
 
@@ -75,7 +79,7 @@ class Processor:
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
 
         folds, ytrue, yhat, timestamps = self.crossvalidate(X, y, result)
-        self.pr.add(split=folds, yhat=yhat, ytrue=ytrue, timestamp=timestamps)
+        self.pr.add(type="?", split=folds, yhat=yhat, ytrue=ytrue, timestamp=timestamps)
 
         rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 2)
         mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 2)
@@ -143,7 +147,7 @@ class Processor:
             split=np.full(shape=y_hat.size, fill_value=0),
             yhat=src.utils.rescaletarget(self._scaler, y_hat),
             ytrue=src.utils.rescaletarget(self._scaler, y_test),
-            timestamp=test.index.to_numpy()
+            timestamp=test.index.to_numpy(),
         )
 
         rmse = round(mean_squared_error(_ytrue, _yhat, squared=False), 2)
@@ -217,9 +221,19 @@ class KNNProcessor(Processor):
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
             weights=["uniform", "distance"],
             metric=[
-                "euclidean", "l2", "l1", "manhattan", "cityblock", "braycurtis",
-                "canberra", "chebyshev", "correlation", "cosine", "hamming",
-                "minkowski", "nan_euclidean",
+                "euclidean",
+                "l2",
+                "l1",
+                "manhattan",
+                "cityblock",
+                "braycurtis",
+                "canberra",
+                "chebyshev",
+                "correlation",
+                "cosine",
+                "hamming",
+                "minkowski",
+                "nan_euclidean",
                 # "haversine" (only valid for 2d)
                 # "wminkowski" (requires a weight vector `w` to be given)
                 # "yule" (data was converted to boolean)
@@ -234,7 +248,7 @@ class KNNProcessor(Processor):
                 # "kulsinski" (data was converted to boolean)
                 # "jaccard" (data was converted to boolean)
                 # "dice" (data was converted to boolean)
-            ]
+            ],
         )
         self.model = KNeighborsRegressor(**self.defaults)
 
@@ -259,7 +273,7 @@ class SVRProcessor(Processor):
             C=[0.1, 0.5, 1.0, 1.5, 2.0],
             epsilon=[0.01, 0.05, 0.1],
             gamma=["scale", "auto"],
-            tol=[1e-3]
+            tol=[1e-3],
         )
 
         # self.space = dict(
@@ -291,10 +305,8 @@ class MLPProcessor(Processor):
             solver=["lbfgs"],
             alpha=[0.05, 0.1],
             momentum=[0.9],
-
             learning_rate=["constant"],
             learning_rate_init=[0.005, 0.001],
-
             max_iter=[500],
             n_iter_no_change=[10],
             tol=[1e-4],
