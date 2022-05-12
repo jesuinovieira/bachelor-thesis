@@ -217,6 +217,9 @@ class KNNProcessor(Processor):
         self.defaults = dict(algorithm="auto")
 
         # NOTE: A escolha da proximidade utilizada é fundamental para o kNN!
+        # - Algorithm (brute, ball_tree or kd_tree) don't change the result, right?
+        # - Any other metric than euclidean distance to grid search? (It's fast!)
+
         self.space = dict(
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
             weights=["uniform", "distance"],

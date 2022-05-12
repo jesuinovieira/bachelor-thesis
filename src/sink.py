@@ -51,7 +51,9 @@ class Sink:
         self.metric = "rmse"
         self.methods = ["LR", "KNN", "SVR", "MLP"]
 
-        self._prs2df()
+        self.df = self._prs2df()
+        dst = os.path.join(self.output, "metrics.csv")
+        self.df.to_csv(dst, index_label="model")
 
     def _prs2df(self):
         # Processor results to dataframe
@@ -68,9 +70,9 @@ class Sink:
 
         # Create dataframe
         data = {"r2": r2, "mae": mae, "mape": mape, "rmse": rmse}
-        self.df = pd.DataFrame(data=data, index=idx)
+        df = pd.DataFrame(data=data, index=idx)
 
-        return self.df
+        return df
 
     def _getbest(self, like):
         subset = self.df.filter(like=like, axis="index")
