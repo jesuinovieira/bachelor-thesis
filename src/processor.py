@@ -52,43 +52,6 @@ class Processor:
         self._scaler.fit(self.df)
         self.df[self.df.columns] = self._scaler.transform(self.df)
 
-    def oldfit(self):
-        X, y = src.utils.df2np(self.df)
-
-        # Grid search with time series cross validation
-        n_jobs = -1
-        scoring = "neg_root_mean_squared_error"
-
-        if self.vm == "TSS":
-            self.tscv = self.tscv(n_splits=self.n_splits)
-        else:
-            rows, _ = X.shape
-            self.tscv = self.tscv(rows, self.n_splits, self.trainw)
-
-        search = GridSearchCV(
-            self.model,
-            self.space,
-            cv=self.tscv,
-            scoring=scoring,
-            n_jobs=n_jobs,
-            verbose=10,
-        )
-        result = search.fit(X, y)
-
-        # Log and save outputs
-        logger.info(f"Best params for '{self._name}': {result.best_params_}")
-
-        folds, ytrue, yhat, timestamps = self.crossvalidate(X, y, result)
-        self.pr.add(type="?", split=folds, yhat=yhat, ytrue=ytrue, timestamp=timestamps)
-
-        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 2)
-        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 2)
-        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
-        logger.info(f"[val/test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
-
-        self.pr.save()
-        return self.pr
-
     def fit(self):
         # Split data into train and test set (validation set is included in train)
         # TODO: train_test_split by timestamp
@@ -295,6 +258,9 @@ class MLPProcessor(Processor):
         super().__init__(id, df, vm, trainw, n_splits, output)
         self.method = MLPRegressor
         self.defaults = dict(shuffle=False, random_state=16)
+
+        # TODO: MLP with Keras?
+        # TODO: training and validation error plots
 
         # https://scikit-learn.org/stable/modules/neural_networks_supervised.html#mlp-tips
         # https://scikit-learn.org/stable/auto_examples/neural_networks/plot_mlp_alpha.html#sphx-glr-auto-examples-neural-networks-plot-mlp-alpha-py

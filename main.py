@@ -62,8 +62,8 @@ def main(cfgfile):
 
 
 if __name__ == "__main__":
-    cfgfolder = "multicfg"
-    configs = os.listdir(cfgfolder)
+    cfgfolder = "."
+    configs = ["config.json"]
 
     for config in configs:
         now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

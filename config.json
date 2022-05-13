@@ -1,6 +1,6 @@
 {
     "kdd": {
-        "select": true,
+        "select": false,
         "preprocess": true,
         "transform": true,
         "fit": true,
@@ -13,8 +13,8 @@
     },
     "processor": {
         "methods": ["LR", "KNN", "SVR", "MLP"],
-        "cv-window": ["EW", "SW"],
-        "train-window": [1092],
-        "n-splits": [48]
+        "cv-window": ["SW", "EW"],
+        "train-window": [729],
+        "n-splits": [12, 48]
     }
 }

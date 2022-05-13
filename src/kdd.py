@@ -87,11 +87,7 @@ class KDDPipeline:
         logger.info(f"[4/5] Data Mining")
         for processor in self._processor:
             logger.info(f"Fitting '{processor.pr.id}' model")
-
-            if self.config["dev"]["oldfit"]:
-                processor.oldfit()
-            else:
-                processor.fit()
+            processor.fit()
 
     def evaluate(self):
         if not self.config["kdd"]["evaluate"]:
