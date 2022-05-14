@@ -8,7 +8,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-from sklearn.model_selection import cross_validate
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import train_test_split
@@ -24,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class Processor:
-    def __init__(self, name, df, vm, trainw, n_splits, output):
+    def __init__(self, name, df, cv, trainw, testw, output):
         self._name = name
         self.method = None
         self.model = None
@@ -34,18 +33,16 @@ class Processor:
         self.df = df
         self._scaler = MinMaxScaler()
 
-        self.vm = vm
+        self.cv = cv
         self.trainw = trainw
-        self.n_splits = n_splits
+        self.testw = testw
         self.pr = ProcessorResults(
-            self._name, self.model, self.vm, self.trainw, self.n_splits, path=output
+            self._name, self.model, self.cv, self.trainw, self.testw, path=output
         )
 
-        if self.vm == "TSS":
-            self.tscv = TimeSeriesSplit
-        if self.vm == "EW":
+        if self.cv == "EW":
             self.tscv = tscv.ExpandingWindow
-        if self.vm == "SW":
+        if self.cv == "SW":
             self.tscv = tscv.SlidingWindow
 
     def transform(self):
@@ -73,11 +70,8 @@ class Processor:
         #     "r2_score"
         # ]
 
-        if self.vm == "TSS":
-            self.tscv = self.tscv(n_splits=self.n_splits)
-        else:
-            rows, _ = X_train.shape
-            self.tscv = self.tscv(rows, self.n_splits, self.trainw)
+        rows, _ = X_train.shape
+        self.tscv = self.tscv(n_samples=rows, trainw=self.trainw, testw=self.testw)
 
         # fmt: off
         search = GridSearchCV(
@@ -165,8 +159,8 @@ class Processor:
 
 # NOTE: Ordinary Least Squares
 class LRProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
+    def __init__(self, id, df, cv, trainw, testw, output):
+        super().__init__(id, df, cv, trainw, testw, output)
         self.method = LinearRegression
         self.defaults = dict(fit_intercept=True)
         self.space = dict()
@@ -174,8 +168,8 @@ class LRProcessor(Processor):
 
 
 class KNNProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
+    def __init__(self, id, df, cv, trainw, testw, output):
+        super().__init__(id, df, cv, trainw, testw, output)
         self.method = KNeighborsRegressor
         self.defaults = dict(algorithm="auto")
 
@@ -220,8 +214,8 @@ class KNNProcessor(Processor):
 
 
 class SVRProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
+    def __init__(self, id, df, cv, trainw, testw, output):
+        super().__init__(id, df, cv, trainw, testw, output)
         self.method = SVR
         self.defaults = dict(cache_size=500)
 
@@ -234,28 +228,28 @@ class SVRProcessor(Processor):
         # - In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient
         # - 'gamma': [1e-7, 1e-4],'epsilon':[0.1,0.2,0.5,0.3]
 
-        self.space = dict(
-            kernel=["linear", "poly", "rbf", "sigmoid"],
-            C=[0.1, 0.5, 1.0, 1.5, 2.0],
-            epsilon=[0.01, 0.05, 0.1],
-            gamma=["scale", "auto"],
-            tol=[1e-3],
-        )
-
         # self.space = dict(
         #     kernel=["linear", "poly", "rbf", "sigmoid"],
-        #     C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
-        #     epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+        #     C=[0.1, 0.5, 1.0, 1.5, 2.0],
+        #     epsilon=[0.01, 0.05, 0.1],
         #     gamma=["scale", "auto"],
-        #     tol=[1e-3]
+        #     tol=[1e-3],
         # )
+
+        self.space = dict(
+            kernel=["linear", "poly", "rbf", "sigmoid"],
+            C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
+            epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+            gamma=["scale", "auto"],
+            tol=[1e-3]
+        )
 
         self.model = SVR(**self.defaults)
 
 
 class MLPProcessor(Processor):
-    def __init__(self, id, df, vm, trainw, n_splits, output):
-        super().__init__(id, df, vm, trainw, n_splits, output)
+    def __init__(self, id, df, cv, trainw, testw, output):
+        super().__init__(id, df, cv, trainw, testw, output)
         self.method = MLPRegressor
         self.defaults = dict(shuffle=False, random_state=16)
 
@@ -268,19 +262,21 @@ class MLPProcessor(Processor):
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
 
-        self.space = dict(
-            hidden_layer_sizes=[(13,)],
-            activation=["tanh", "relu"],
-            solver=["lbfgs"],
-            alpha=[0.05, 0.1],
-            momentum=[0.9],
-            learning_rate=["constant"],
-            learning_rate_init=[0.005, 0.001],
-            max_iter=[500],
-            n_iter_no_change=[10],
-            tol=[1e-4],
-            early_stopping=[True],
-        )
+        # self.space = dict(
+        #     hidden_layer_sizes=[(13,)],
+        #     activation=["tanh", "relu"],
+        #     solver=["lbfgs"],
+        #     alpha=[0.05, 0.1],
+        #     momentum=[0.9],
+        #
+        #     learning_rate=["constant"],
+        #     learning_rate_init=[0.005, 0.001],
+        #
+        #     max_iter=[500],
+        #     n_iter_no_change=[10],
+        #     tol=[1e-4],
+        #     early_stopping=[True],
+        # )
 
         # hidden_layer_sizes=[
         #     # (8,), (16,), (32,),
@@ -290,36 +286,35 @@ class MLPProcessor(Processor):
         #
         #     (13,), (13, 2),
         # ],
-        #
-        # self.space = dict(
-        #     hidden_layer_sizes=[(13,), (21,), (29,)],
-        #     activation=["logistic", "tanh", "relu"],
-        #     solver=["lbfgs", "sgd", "adam"],
-        #     # alpha=[10.0 ** np.arange(1, 7)],
-        #     alpha=list(np.logspace(-1, 1, 5)),
-        #     momentum=[0.9, 0.95],
-        #
-        #     learning_rate=["constant", "invscaling", "adaptive"],
-        #     learning_rate_init=[0.001, 0.01, 0.05],
-        #
-        #     max_iter=[500],
-        #     n_iter_no_change=[10],
-        #     tol=[1e-4],
-        #     early_stopping=[True],
-        # )
+
+        self.space = dict(
+            hidden_layer_sizes=[(13,), (21,), (29,)],
+            activation=["logistic", "tanh", "relu"],
+            solver=["lbfgs", "sgd", "adam"],
+            alpha=[0.01, 0.5, 0.1],
+            momentum=[0.9, 0.95],
+
+            learning_rate=["constant", "invscaling", "adaptive"],
+            learning_rate_init=[0.001, 0.005, 0.01],
+
+            max_iter=[500],
+            n_iter_no_change=[10],
+            tol=[1e-4],
+            early_stopping=[True],
+        )
 
         self.model = MLPRegressor(**self.defaults)
 
 
 class ProcessorResults:
-    def __init__(self, name, model, vm, trainw, n_splits, path):
-        self.id = f"{name}-{vm}-{trainw}-{n_splits}"
+    def __init__(self, name, model, cv, trainw, testw, path):
+        self.id = f"{name}-{cv}-{trainw}-{testw}"
         self.model = model
         self.output = path
 
-        self.vm = vm  # Validation method
+        self.cv = cv  # Cross validation method
         self.trainw = trainw  # Train window
-        self.n_splits = n_splits  # Number of splits for cross validation
+        self.n_splits = testw  # Test window
 
         self.yhat = np.array([], dtype=float)
         self.ytrue = np.array([], dtype=float)

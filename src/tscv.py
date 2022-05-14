@@ -1,13 +1,15 @@
+import math
+
 # TODO: make code reusable (SW and EW are very similar)
 
 
 class SlidingWindow:
-    def __init__(self, n_samples, n_splits, trainw):
+    def __init__(self, n_samples, trainw, testw):
         self.n_samples = n_samples
-        self.n_splits = n_splits
+        self.trainw = trainw
+        self.testw = testw
 
-        self.trainw = trainw if trainw else n_samples // n_splits
-        self.testw = (n_samples - trainw) // n_splits
+        self.n_splits = math.ceil((self.n_samples - self.trainw) / testw)
 
         assert n_samples != self.trainw
         assert self.testw > 0
@@ -30,11 +32,12 @@ class SlidingWindow:
 
 
 class ExpandingWindow:
-    def __init__(self, n_samples, n_splits, trainw):
+    def __init__(self, n_samples, trainw, testw):
         self.n_samples = n_samples
-        self.n_splits = n_splits
         self.trainw = trainw
-        self.testw = (n_samples - trainw) // n_splits
+        self.testw = testw
+
+        self.n_splits = math.ceil((self.n_samples - self.trainw) / testw)
 
         assert n_samples != self.trainw
         assert self.testw > 0

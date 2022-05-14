@@ -13,8 +13,8 @@
     },
     "processor": {
         "methods": ["LR", "KNN", "SVR", "MLP"],
-        "cv-window": ["SW", "EW"],
+        "cross-validation": ["SW", "EW"],
         "train-window": [729],
-        "n-splits": [12, 48]
+        "test-window": [7, 28]
     }
 }
