@@ -33,32 +33,27 @@ class Processor:
         self.df = df
         self._scaler = MinMaxScaler()
 
-        self.cv = cv
+        self.cv = tscv.ExpandingWindow if cv.upper() == "EW" else tscv.SlidingWindow
         self.trainw = trainw
         self.testw = testw
         self.pr = ProcessorResults(
-            self._name, self.model, self.cv, self.trainw, self.testw, path=output
+            self._name, self.model, cv, self.trainw, self.testw, path=output
         )
-
-        if self.cv == "EW":
-            self.tscv = tscv.ExpandingWindow
-        if self.cv == "SW":
-            self.tscv = tscv.SlidingWindow
 
     def transform(self):
         self._scaler.fit(self.df)
         self.df[self.df.columns] = self._scaler.transform(self.df)
 
     def fit(self):
+        # TODO: fit() -> model selection
+        # TODO: evaluate() -> model evaluation
+
         # Split data into train and test set (validation set is included in train)
         # TODO: train_test_split by timestamp
         train, test = train_test_split(self.df, test_size=0.2475, shuffle=False)
 
-        data = train.to_numpy()
-        X_train, y_train = data[:, 1:], data[:, 0].T
-
-        data = test.to_numpy()
-        X_test, y_test = data[:, 1:], data[:, 0].T
+        train = train.to_numpy()
+        X_train, y_train = train[:, 1:], train[:, 0].T
 
         # Model selection
         n_jobs = -1
@@ -71,25 +66,31 @@ class Processor:
         # ]
 
         rows, _ = X_train.shape
-        self.tscv = self.tscv(n_samples=rows, trainw=self.trainw, testw=self.testw)
-
-        # fmt: off
+        ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
         search = GridSearchCV(
-            self.model, self.space, cv=self.tscv, scoring=scoring, n_jobs=n_jobs,
-            verbose=10
+            self.model, self.space, cv=ms_cv, scoring=scoring, n_jobs=n_jobs, verbose=10
         )
-        # fmt: on
         result = search.fit(X_train, y_train)
 
         # Fit selected model in train data
-        model = self.method(**self.defaults, **result.best_params_)
-        model.fit(X_train, y_train)
-
+        # model = self.method(**self.defaults, **result.best_params_)
+        # model.fit(X_train, y_train)
         # Evaluate on test data
-        y_hat = model.predict(X_test)
+        # y_hat = model.predict(X_test)
 
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
-        _fold, _ytrue, _yhat, _timestamp = self.crossvalidate(X_train, y_train, result)
+
+        timestamps = self.df.index.to_numpy()
+
+        rows, _ = X_train.shape
+        ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
+        model = self.method(**self.defaults, **result.best_params_)
+        ms_iteration, ms_timestamp, ms_ytrue, ms_yhat = tscv.crossvalidate(
+            model, ms_cv, X_train, y_train, timestamps
+        )
+
+        ms_ytrue = src.utils.rescaletarget(self._scaler, ms_ytrue)
+        ms_yhat = src.utils.rescaletarget(self._scaler, ms_yhat)
 
         # self.pr.add(
         #     type="validation",
@@ -99,28 +100,45 @@ class Processor:
         #     timestamp=_timestamp
         # )
 
-        self.pr.add(
-            type="test",
-            split=np.full(shape=y_hat.size, fill_value=0),
-            yhat=src.utils.rescaletarget(self._scaler, y_hat),
-            ytrue=src.utils.rescaletarget(self._scaler, y_test),
-            timestamp=test.index.to_numpy(),
-        )
-
-        rmse = round(mean_squared_error(_ytrue, _yhat, squared=False), 2)
-        mape = round(mean_absolute_percentage_error(_ytrue, _yhat), 2)
-        r2 = round(r2_score(_ytrue, _yhat), 2)
+        rmse = round(mean_squared_error(ms_ytrue, ms_yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(ms_ytrue, ms_yhat), 2)
+        r2 = round(r2_score(ms_ytrue, ms_yhat), 2)
         logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
-        rmse = round(mean_squared_error(self.pr.ytrue, self.pr.yhat, squared=False), 2)
-        mape = round(mean_absolute_percentage_error(self.pr.ytrue, self.pr.yhat), 2)
-        r2 = round(r2_score(self.pr.ytrue, self.pr.yhat), 2)
+        # ==============================================================================
+
+        # Model evaluation
+        data = self.df.to_numpy()
+        X, y = data[:, 1:], data[:, 0].T
+        timestamps = self.df.index.to_numpy()
+
+        rows, _ = X.shape
+        me_cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
+        model = self.method(**self.defaults, **result.best_params_)
+        me_iteration, me_timestamp, me_ytrue, me_yhat = tscv.crossvalidate(
+            model, me_cv, X, y, timestamps
+        )
+
+        me_ytrue = src.utils.rescaletarget(self._scaler, me_ytrue)
+        me_yhat = src.utils.rescaletarget(self._scaler, me_yhat)
+
+        self.pr.add(
+            type="test",
+            split=me_iteration,
+            timestamp=me_timestamp,
+            yhat=me_yhat,
+            ytrue=me_ytrue,
+        )
+
+        rmse = round(mean_squared_error(me_ytrue, me_yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(me_ytrue, me_yhat), 2)
+        r2 = round(r2_score(me_ytrue, me_yhat), 2)
         logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
         self.pr.save()
         return self.pr
 
-    def crossvalidate(self, X, y, result):
+    def crossvalidate(self, X, y, cv, result):
         # TODO: move to utils
         # Get y_true and y_hat for each cross validation iteration. Because of temporal
         # dependency, each split is always equal
@@ -129,7 +147,7 @@ class Processor:
         ytrue = np.array([], dtype=float)
         timestamps = np.array([], dtype=np.datetime64)
 
-        for i, (trainidxs, testidxs) in enumerate(self.tscv.split(X, y)):
+        for i, (trainidxs, testidxs) in enumerate(cv.split(X, y)):
             X_train, X_test = X[trainidxs], X[testidxs]
             y_train, y_test = y[trainidxs], y[testidxs]
 
