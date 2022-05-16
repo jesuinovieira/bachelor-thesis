@@ -4,6 +4,7 @@ import matplotlib.backends.backend_pdf
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
@@ -40,6 +41,15 @@ def _getmetrics(ytrue, yhat, decimals=2):
     return r2, mae, mape, rmse
 
 
+def _bestidx(df, method, metric):
+    df = df.filter(like=method, axis="index")
+
+    condition = df[metric].min() if metric != "r2" else df[metric].max()
+    df = df[df[metric] == condition]
+
+    return df.index.to_list()
+
+
 class Sink:
     def __init__(self, prs, path):
         if not os.path.isdir(path):
@@ -53,6 +63,9 @@ class Sink:
         self.metrics = self._prs2df()
         dst = os.path.join(self.output, "metrics.csv")
         self.metrics.to_csv(dst, index_label="model")
+
+        sns.set_theme()
+        sns.set_style("whitegrid")
 
     def _prs2df(self):
         index = []
@@ -75,8 +88,8 @@ class Sink:
 
         return df
 
-    def _getbest(self, like, split="test"):
-        subset = self.metrics[self.metrics.split == split]
+    def _getbest(self, like):
+        subset = self.metrics[self.metrics.split == "test"]
         subset = subset.filter(like=like, axis="index")
 
         if self.metric != "r2":
@@ -84,22 +97,39 @@ class Sink:
         else:
             best = subset[subset[self.metric] == subset[self.metric].max()]
 
+        # TODO: if more than one, select by validation
+        if len(best) > 1:
+            idx = best.index[0]
+
         return best
 
-    def _getbests(self):
-        # TODO: if more than one, select by validation
-        lr = self._getbest("LR").head(1)
-        knn = self._getbest("KNN")
-        svr = self._getbest("SVR")
-        mlp = self._getbest("MLP")
+    def _boem(self):
+        # Best of each method
+        testmetrics = self.metrics[self.metrics.split == "test"]
+        valmetrics = self.metrics[self.metrics.split == "val"]
 
-        return pd.concat([lr, knn, svr, mlp])
+        indexes = []
+        for method in self.methods:
+            index = _bestidx(testmetrics, method, self.metric)
 
-    def _getpredictions(self, id):
+            if not index:
+                continue
+
+            if len(index) > 1:
+                subset = valmetrics[valmetrics.index.isin(index)]
+                index = _bestidx(subset, method, self.metric)
+
+            indexes.append(index[0])
+
+        df = self.metrics[self.metrics.index.isin(indexes)]
+        return df
+
+    def _getpredictions(self, id, split="test"):
         for pr in self.prs:
             if pr.id == id:
-                data = {"yhat": pr.yhat, "ytrue": pr.ytrue}
-                df = pd.DataFrame(data=data, index=pr.timestamp)
+                df = pr.df[pr.df.split == split]
+                data = {"yhat": df.yhat, "ytrue": df.ytrue}
+                df = pd.DataFrame(data=data, index=df.index)
                 df.index = pd.to_datetime(df.index)
                 return df
 
@@ -120,19 +150,42 @@ class Sink:
             self.monthly(pdf)
 
     def barofbests(self, pdf):
-        df = self._getbests()
-        title = f"Model with min {self.metric.upper()} of each method"
+        df = self._boem()
+        index = df.index.unique().to_list()
 
-        axes = df.plot.bar(rot=0, grid=True, subplots=True, layout=(2, 2), title=title)
-        for ax in axes.flatten():
+        # axes = df.plot.bar(
+        #     rot=0, grid=True, subplots=True, layout=(2, 2), title=title, hue="split"
+        # )
+
+        metrics = df.columns.to_list()
+        metrics.pop()
+
+        df = df.reset_index()
+        df = df.rename(columns={"index": "model"})
+
+        fig, axes = plt.subplots(2, 2)
+        for metric, ax in zip(metrics, axes.flatten()):
+            subset = df[["model", metric, "split"]]
+            sns.barplot(x="model", y=metric, hue="split", data=subset, ax=ax)
+
+        for i, ax in enumerate(axes.flatten()):
+            if i < 2:
+                ax.set_xticks([])
+
+            # ax.grid(axis="y", zorder=0)
+            ax.set(xlabel=None)
+
             for container in ax.containers:
                 ax.bar_label(container)
+
+        title = f"Model with best {self.metric.upper()} of each method"
+        fig.suptitle(title)
 
         plot.wrapup(pdf)
 
     def lineofbests(self, pdf):
         for method in self.methods:
-            # Select the model with best performance based on some metric
+            # Select the model with the best performance based on some metric
             filtered = self._getbest(method)
 
             if filtered.empty:

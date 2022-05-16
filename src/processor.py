@@ -149,19 +149,19 @@ class KNNProcessor(Processor):
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
             weights=["uniform", "distance"],
             metric=[
-                # "euclidean",
-                # "l2",
-                # "l1",
-                # "manhattan",
-                # "cityblock",
+                "euclidean",
+                "l2",
+                "l1",
+                "manhattan",
+                "cityblock",
                 "braycurtis",
                 "canberra",
-                # "chebyshev",
-                # "correlation",
-                # "cosine",
-                # "hamming",
-                # "minkowski",
-                # "nan_euclidean",
+                "chebyshev",
+                "correlation",
+                "cosine",
+                "hamming",
+                "minkowski",
+                "nan_euclidean",
                 # ----------------------------------------------------------------------
                 # "haversine" (only valid for 2d)
                 # "wminkowski" (requires a weight vector `w` to be given)
@@ -179,6 +179,17 @@ class KNNProcessor(Processor):
                 # "dice" (data was converted to boolean)
             ],
         )
+
+        self.space = dict(
+            n_neighbors=[7, 9, 11, 13],
+            weights=["uniform", "distance"],
+            metric=[
+                "euclidean",
+                "braycurtis",
+                "canberra",
+            ],
+        )
+
         self.model = KNeighborsRegressor(**self.defaults)
 
 
@@ -197,20 +208,20 @@ class SVRProcessor(Processor):
         # - In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient
         # - 'gamma': [1e-7, 1e-4],'epsilon':[0.1,0.2,0.5,0.3]
 
-        # self.space = dict(
-        #     kernel=["linear", "poly", "rbf", "sigmoid"],
-        #     C=[0.1, 0.5, 1.0, 1.5, 2.0],
-        #     epsilon=[0.01, 0.05, 0.1],
-        #     gamma=["scale", "auto"],
-        #     tol=[1e-3],
-        # )
-
         self.space = dict(
             kernel=["linear", "poly", "rbf", "sigmoid"],
             C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
             epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
             gamma=["scale", "auto"],
             tol=[1e-3]
+        )
+
+        self.space = dict(
+            kernel=["rbf"],
+            C=[0.5, 1.0, 1.5],
+            epsilon=[0.05],
+            gamma=["scale"],
+            tol=[1e-3],
         )
 
         self.model = SVR(**self.defaults)
@@ -230,22 +241,6 @@ class MLPProcessor(Processor):
         #
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
-
-        # self.space = dict(
-        #     hidden_layer_sizes=[(13,)],
-        #     activation=["tanh", "relu"],
-        #     solver=["lbfgs"],
-        #     alpha=[0.05, 0.1],
-        #     momentum=[0.9],
-        #
-        #     learning_rate=["constant"],
-        #     learning_rate_init=[0.005, 0.001],
-        #
-        #     max_iter=[500],
-        #     n_iter_no_change=[10],
-        #     tol=[1e-4],
-        #     early_stopping=[True],
-        # )
 
         # hidden_layer_sizes=[
         #     # (8,), (16,), (32,),
@@ -271,6 +266,22 @@ class MLPProcessor(Processor):
             tol=[1e-4],
             early_stopping=[True],
         )
+
+        # self.space = dict(
+        #     hidden_layer_sizes=[(13,)],
+        #     activation=["tanh", "relu"],
+        #     solver=["lbfgs"],
+        #     alpha=[0.05, 0.1],
+        #     momentum=[0.9],
+        #
+        #     learning_rate=["constant"],
+        #     learning_rate_init=[0.005, 0.001],
+        #
+        #     max_iter=[500],
+        #     n_iter_no_change=[10],
+        #     tol=[1e-4],
+        #     early_stopping=[True],
+        # )
 
         self.model = MLPRegressor(**self.defaults)
 
