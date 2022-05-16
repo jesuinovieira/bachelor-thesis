@@ -47,6 +47,7 @@ class Processor:
     def fit(self):
         # TODO: fit() -> model selection
         # TODO: evaluate() -> model evaluation
+        # TODO: save and plot val metrics too
 
         # Split data into train and test set (validation set is included in train)
         # TODO: train_test_split by timestamp
@@ -137,39 +138,6 @@ class Processor:
 
         self.pr.save()
         return self.pr
-
-    def crossvalidate(self, X, y, cv, result):
-        # TODO: move to utils
-        # Get y_true and y_hat for each cross validation iteration. Because of temporal
-        # dependency, each split is always equal
-        idxs = np.array([], dtype=int)
-        yhat = np.array([], dtype=float)
-        ytrue = np.array([], dtype=float)
-        timestamps = np.array([], dtype=np.datetime64)
-
-        for i, (trainidxs, testidxs) in enumerate(cv.split(X, y)):
-            X_train, X_test = X[trainidxs], X[testidxs]
-            y_train, y_test = y[trainidxs], y[testidxs]
-
-            # Fit a model
-            model = self.method(**self.defaults, **result.best_params_)
-            model.fit(X_train, y_train)
-
-            # Predict values
-            y_hat = model.predict(X_test)
-
-            # TODO: assert fold results are the same
-
-            idxs = np.append(idxs, np.full(shape=y_hat.size, fill_value=i))
-            timestamps = np.append(timestamps, self.df.index[testidxs].to_numpy())
-
-            ytrue_ = src.utils.rescaletarget(self._scaler, y_test)
-            ytrue = np.append(ytrue, ytrue_)
-
-            yhat_ = src.utils.rescaletarget(self._scaler, y_hat)
-            yhat = np.append(yhat, yhat_)
-
-        return idxs, ytrue, yhat, timestamps
 
     def predict(self, X):
         return self.model.predict(X)
