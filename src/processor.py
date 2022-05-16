@@ -9,7 +9,6 @@ from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
@@ -36,9 +35,7 @@ class Processor:
         self.cv = tscv.ExpandingWindow if cv.upper() == "EW" else tscv.SlidingWindow
         self.trainw = trainw
         self.testw = testw
-        self.pr = ProcessorResults(
-            self._name, self.model, cv, self.trainw, self.testw, path=output
-        )
+        self.pr = ProcessorResults(name, df, cv, trainw, testw, path=output)
 
     def transform(self):
         self._scaler.fit(self.df)
@@ -48,23 +45,19 @@ class Processor:
         # TODO: fit() -> model selection
         # TODO: evaluate() -> model evaluation
         # TODO: save and plot val metrics too
+        # TODO: train_test_split by timestamp
+        # TODO: grid search multi score
 
         # Split data into train and test set (validation set is included in train)
-        # TODO: train_test_split by timestamp
         train, test = train_test_split(self.df, test_size=0.2475, shuffle=False)
-
         train = train.to_numpy()
         X_train, y_train = train[:, 1:], train[:, 0].T
+        timestamps = self.df.index.to_numpy()
 
         # Model selection
+        # ------------------------------------------------------------------------------
         n_jobs = -1
         scoring = "neg_root_mean_squared_error"
-        # TODO: multiple scores
-        # scoring = [
-        #     "neg_root_mean_squared_error",
-        #     "neg_mean_absolute_percentage_error",
-        #     "r2_score"
-        # ]
 
         rows, _ = X_train.shape
         ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
@@ -72,16 +65,6 @@ class Processor:
             self.model, self.space, cv=ms_cv, scoring=scoring, n_jobs=n_jobs, verbose=10
         )
         result = search.fit(X_train, y_train)
-
-        # Fit selected model in train data
-        # model = self.method(**self.defaults, **result.best_params_)
-        # model.fit(X_train, y_train)
-        # Evaluate on test data
-        # y_hat = model.predict(X_test)
-
-        logger.info(f"Best params for '{self._name}': {result.best_params_}")
-
-        timestamps = self.df.index.to_numpy()
 
         rows, _ = X_train.shape
         ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
@@ -93,25 +76,24 @@ class Processor:
         ms_ytrue = src.utils.rescaletarget(self._scaler, ms_ytrue)
         ms_yhat = src.utils.rescaletarget(self._scaler, ms_yhat)
 
-        # self.pr.add(
-        #     type="validation",
-        #     split=_fold,
-        #     yhat=_yhat,
-        #     ytrue=_ytrue,
-        #     timestamp=_timestamp
-        # )
+        self.pr.add(
+            split="val",
+            iteration=ms_iteration,
+            yhat=ms_yhat,
+            ytrue=ms_ytrue,
+            timestamp=ms_timestamp
+        )
 
         rmse = round(mean_squared_error(ms_ytrue, ms_yhat, squared=False), 2)
         mape = round(mean_absolute_percentage_error(ms_ytrue, ms_yhat), 2)
         r2 = round(r2_score(ms_ytrue, ms_yhat), 2)
+        logger.info(f"Best params for '{self._name}': {result.best_params_}")
         logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
-        # ==============================================================================
-
         # Model evaluation
+        # ------------------------------------------------------------------------------
         data = self.df.to_numpy()
         X, y = data[:, 1:], data[:, 0].T
-        timestamps = self.df.index.to_numpy()
 
         rows, _ = X.shape
         me_cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
@@ -124,8 +106,8 @@ class Processor:
         me_yhat = src.utils.rescaletarget(self._scaler, me_yhat)
 
         self.pr.add(
-            type="test",
-            split=me_iteration,
+            split="test",
+            iteration=me_iteration,
             timestamp=me_timestamp,
             yhat=me_yhat,
             ytrue=me_ytrue,
@@ -136,7 +118,7 @@ class Processor:
         r2 = round(r2_score(me_ytrue, me_yhat), 2)
         logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
-        self.pr.save()
+        self.pr.save(model)
         return self.pr
 
     def predict(self, X):
@@ -167,19 +149,20 @@ class KNNProcessor(Processor):
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
             weights=["uniform", "distance"],
             metric=[
-                "euclidean",
-                "l2",
-                "l1",
-                "manhattan",
-                "cityblock",
+                # "euclidean",
+                # "l2",
+                # "l1",
+                # "manhattan",
+                # "cityblock",
                 "braycurtis",
                 "canberra",
-                "chebyshev",
-                "correlation",
-                "cosine",
-                "hamming",
-                "minkowski",
-                "nan_euclidean",
+                # "chebyshev",
+                # "correlation",
+                # "cosine",
+                # "hamming",
+                # "minkowski",
+                # "nan_euclidean",
+                # ----------------------------------------------------------------------
                 # "haversine" (only valid for 2d)
                 # "wminkowski" (requires a weight vector `w` to be given)
                 # "yule" (data was converted to boolean)
@@ -293,35 +276,43 @@ class MLPProcessor(Processor):
 
 
 class ProcessorResults:
-    def __init__(self, name, model, cv, trainw, testw, path):
+    def __init__(self, name, df, cv, trainw, testw, path):
         self.id = f"{name}-{cv}-{trainw}-{testw}"
-        self.model = model
+        self.df = df
         self.output = path
+        self.model = None
 
         self.cv = cv  # Cross validation method
         self.trainw = trainw  # Train window
         self.n_splits = testw  # Test window
 
+        self.iteration = np.array([], dtype=int)
+        self.timestamp = np.array([], dtype=np.datetime64)
         self.yhat = np.array([], dtype=float)
         self.ytrue = np.array([], dtype=float)
-        self.split = np.array([], dtype=int)
-        self.type = np.array([], dtype=str)
-        self.timestamp = np.array([], dtype=np.datetime64)
+        self.split = np.array([], dtype=str)
 
-    def add(self, type, split, yhat, ytrue, timestamp):
-        self.type = np.append(self.type, np.full(yhat.size, fill_value=type))
-        self.split = np.append(self.split, np.full(yhat.size, fill_value=split))
+    def add(self, split, iteration, yhat, ytrue, timestamp):
+        split = np.full(yhat.size, fill_value=split)
+
+        self.iteration = np.append(self.iteration, iteration)
+        self.timestamp = np.append(self.timestamp, timestamp)
         self.yhat = np.append(self.yhat, yhat)
         self.ytrue = np.append(self.ytrue, ytrue)
-        self.timestamp = np.append(self.timestamp, timestamp)
+        self.split = np.append(self.split, split)
 
-    def save(self):
+    def save(self, model):
         if not os.path.isdir(self.output):
             os.makedirs(self.output, exist_ok=True)
 
-        # Create dataframe
-        data = dict(ytrue=self.ytrue, yhat=self.yhat, split=self.split, type=self.type)
+        self.model = model
+        data = dict(
+            ytrue=self.ytrue, yhat=self.yhat, iteration=self.iteration, split=self.split
+        )
+
         df = pd.DataFrame(data=data, index=self.timestamp)
+        self.df = pd.concat([self.df, df], axis=1)
+        self.df.split = self.df.split.fillna("train")
 
         # Save predictions
         dst = os.path.join(self.output, f"{self.id}.csv")

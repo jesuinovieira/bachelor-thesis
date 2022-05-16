@@ -31,11 +31,11 @@ import src.plot as plot
 # ======================================================================================
 
 
-def _getmetrics(ytrue, yhat):
-    r2 = r2_score(ytrue, yhat)
-    mae = mean_absolute_error(ytrue, yhat)
-    mape = mean_absolute_percentage_error(ytrue, yhat)
-    rmse = mean_squared_error(ytrue, yhat, squared=False)
+def _getmetrics(ytrue, yhat, decimals=2):
+    r2 = round(r2_score(ytrue, yhat), decimals)
+    mae = round(mean_absolute_error(ytrue, yhat), decimals)
+    mape = round(mean_absolute_percentage_error(ytrue, yhat), decimals)
+    rmse = round(mean_squared_error(ytrue, yhat, squared=False), decimals)
 
     return r2, mae, mape, rmse
 
@@ -45,37 +45,39 @@ class Sink:
         if not os.path.isdir(path):
             os.makedirs(path, exist_ok=True)
 
-        self.df = None
         self.prs = prs
         self.output = path
         self.metric = "rmse"
         self.methods = ["LR", "KNN", "SVR", "MLP"]
 
-        self.df = self._prs2df()
+        self.metrics = self._prs2df()
         dst = os.path.join(self.output, "metrics.csv")
-        self.df.to_csv(dst, index_label="model")
+        self.metrics.to_csv(dst, index_label="model")
 
     def _prs2df(self):
-        # Processor results to dataframe
-        idx, r2, mae, mape, rmse = [], [], [], [], []
-        for pr in self.prs:
-            _idx = pr.id
-            _r2, _mae, _mape, _rmse = _getmetrics(pr.ytrue, pr.yhat)
+        index = []
+        data = dict(r2=[], mae=[], mape=[], rmse=[], split=[])
+        for split in ["val", "test"]:
+            for pr in self.prs:
+                df = pr.df[pr.df.split == split]
 
-            idx.append(_idx)
-            r2.append(_r2)
-            mae.append(_mae)
-            mape.append(_mape)
-            rmse.append(_rmse)
+                r2, mae, mape, rmse = _getmetrics(df.ytrue, df.yhat)
+
+                index.append(pr.id)
+                data["r2"].append(r2)
+                data["mae"].append(mae)
+                data["mape"].append(mape)
+                data["rmse"].append(rmse)
+                data["split"].append(split)
 
         # Create dataframe
-        data = {"r2": r2, "mae": mae, "mape": mape, "rmse": rmse}
-        df = pd.DataFrame(data=data, index=idx)
+        df = pd.DataFrame(data=data, index=index)
 
         return df
 
-    def _getbest(self, like):
-        subset = self.df.filter(like=like, axis="index")
+    def _getbest(self, like, split="test"):
+        subset = self.metrics[self.metrics.split == split]
+        subset = subset.filter(like=like, axis="index")
 
         if self.metric != "r2":
             best = subset[subset[self.metric] == subset[self.metric].min()]
@@ -85,6 +87,7 @@ class Sink:
         return best
 
     def _getbests(self):
+        # TODO: if more than one, select by validation
         lr = self._getbest("LR").head(1)
         knn = self._getbest("KNN")
         svr = self._getbest("SVR")
