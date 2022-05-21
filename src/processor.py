@@ -28,6 +28,7 @@ class Processor:
         self.model = None
         self.space = None
         self.defaults = None
+        self.best_params = None
 
         self.df = df
         self._scaler = MinMaxScaler()
@@ -47,84 +48,81 @@ class Processor:
         self.df[self.df.columns] = self._scaler.transform(self.df)
 
     def fit(self):
-        # TODO: fit() -> model selection
-        # TODO: evaluate() -> model evaluation
-        # TODO: save and plot val metrics too
         # TODO: train_test_split by timestamp
-        # TODO: grid search multi score
+        # TODO: multi score grid search
+        self._ms()
+        self._me()
 
-        # Split data into train and test set (validation set is included in train)
+        return self.pr
+
+    def _ms(self):
+        # Split
         train, test = train_test_split(self.df, test_size=0.2475, shuffle=False)
         train = train.to_numpy()
         X_train, y_train = train[:, 1:], train[:, 0].T
         timestamps = self.df.index.to_numpy()
 
-        # Model selection
-        # ------------------------------------------------------------------------------
-        n_jobs = -1
-        scoring = "neg_root_mean_squared_error"
-
+        # NOTE: trainw and testw must be defined here
         rows, _ = X_train.shape
-        ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
+        cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
+
+        # Grid search
+        scoring = "neg_root_mean_squared_error"
         search = GridSearchCV(
-            self.model, self.space, cv=ms_cv, scoring=scoring, n_jobs=n_jobs, verbose=10
+            self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1, verbose=10
         )
         result = search.fit(X_train, y_train)
+        self.best_params = result.best_params_
 
-        rows, _ = X_train.shape
-        ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
-        model = self.method(**self.defaults, **result.best_params_)
-        ms_iteration, ms_timestamp, ms_ytrue, ms_yhat = src.backtest.backtest(
-            model, ms_cv, X_train, y_train, timestamps
+        # Backtest selected model on validation set
+        model = self.method(**self.defaults, **self.best_params)
+        iteration, ts, ytrue, yhat = src.backtest.backtest(
+            model, cv, X_train, y_train, timestamps
         )
 
-        ms_ytrue = src.utils.rescaletarget(self._scaler, ms_ytrue)
-        ms_yhat = src.utils.rescaletarget(self._scaler, ms_yhat)
+        # Rescale, save and output results
+        ytrue = src.utils.rescaletarget(self._scaler, ytrue)
+        yhat = src.utils.rescaletarget(self._scaler, yhat)
 
         self.pr.add(
-            split="val",
-            iteration=ms_iteration,
-            yhat=ms_yhat,
-            ytrue=ms_ytrue,
-            timestamp=ms_timestamp,
+            split="val", iteration=iteration, yhat=yhat, ytrue=ytrue, timestamp=ts
         )
 
-        rmse = round(mean_squared_error(ms_ytrue, ms_yhat, squared=False), 2)
-        mape = round(mean_absolute_percentage_error(ms_ytrue, ms_yhat), 2)
-        r2 = round(r2_score(ms_ytrue, ms_yhat), 2)
+        rmse = round(mean_squared_error(ytrue, yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(ytrue, yhat), 2)
+        r2 = round(r2_score(ytrue, yhat), 2)
+
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
         logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
-        # Model evaluation
-        # ------------------------------------------------------------------------------
+    def _me(self):
+        # Split
         data = self.df.to_numpy()
         X, y = data[:, 1:], data[:, 0].T
+        timestamps = self.df.index.to_numpy()
 
+        # NOTE: trainw and testw must be defined here
         rows, _ = X.shape
-        me_cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
-        model = self.method(**self.defaults, **result.best_params_)
-        me_iteration, me_timestamp, me_ytrue, me_yhat = src.backtest.backtest(
-            model, me_cv, X, y, timestamps
-        )
+        cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
 
-        me_ytrue = src.utils.rescaletarget(self._scaler, me_ytrue)
-        me_yhat = src.utils.rescaletarget(self._scaler, me_yhat)
+        # Backtest selected model on test set
+        model = self.method(**self.defaults, **self.best_params)
+        iteration, ts, ytrue, yhat = src.backtest.backtest(model, cv, X, y, timestamps)
+
+        # Rescale, save and output results
+        ytrue = src.utils.rescaletarget(self._scaler, ytrue)
+        yhat = src.utils.rescaletarget(self._scaler, yhat)
 
         self.pr.add(
-            split="test",
-            iteration=me_iteration,
-            timestamp=me_timestamp,
-            yhat=me_yhat,
-            ytrue=me_ytrue,
+            split="test", iteration=iteration, timestamp=ts, yhat=yhat, ytrue=ytrue
         )
 
-        rmse = round(mean_squared_error(me_ytrue, me_yhat, squared=False), 2)
-        mape = round(mean_absolute_percentage_error(me_ytrue, me_yhat), 2)
-        r2 = round(r2_score(me_ytrue, me_yhat), 2)
-        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
+        rmse = round(mean_squared_error(ytrue, yhat, squared=False), 2)
+        mape = round(mean_absolute_percentage_error(ytrue, yhat), 2)
+        r2 = round(r2_score(ytrue, yhat), 2)
 
+        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
         self.pr.save(model)
-        return self.pr
 
     def predict(self, X):
         return self.model.predict(X)
