@@ -16,7 +16,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.svm import SVR
 
 import src.utils
-import src.tscv as tscv
+import src.backtest
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,12 @@ class Processor:
         self.df = df
         self._scaler = MinMaxScaler()
 
-        self.cv = tscv.ExpandingWindow if cv.upper() == "EW" else tscv.SlidingWindow
+        self.cv = (
+            src.backtest.ExpandingWindow
+            if cv.upper() == "EW"
+            else src.backtest.SlidingWindow
+        )
+
         self.trainw = trainw
         self.testw = testw
         self.pr = ProcessorResults(name, df, cv, trainw, testw, path=output)
@@ -69,7 +74,7 @@ class Processor:
         rows, _ = X_train.shape
         ms_cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
         model = self.method(**self.defaults, **result.best_params_)
-        ms_iteration, ms_timestamp, ms_ytrue, ms_yhat = tscv.crossvalidate(
+        ms_iteration, ms_timestamp, ms_ytrue, ms_yhat = src.backtest.backtest(
             model, ms_cv, X_train, y_train, timestamps
         )
 
@@ -81,7 +86,7 @@ class Processor:
             iteration=ms_iteration,
             yhat=ms_yhat,
             ytrue=ms_ytrue,
-            timestamp=ms_timestamp
+            timestamp=ms_timestamp,
         )
 
         rmse = round(mean_squared_error(ms_ytrue, ms_yhat, squared=False), 2)
@@ -98,7 +103,7 @@ class Processor:
         rows, _ = X.shape
         me_cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
         model = self.method(**self.defaults, **result.best_params_)
-        me_iteration, me_timestamp, me_ytrue, me_yhat = tscv.crossvalidate(
+        me_iteration, me_timestamp, me_ytrue, me_yhat = src.backtest.backtest(
             model, me_cv, X, y, timestamps
         )
 
@@ -213,7 +218,7 @@ class SVRProcessor(Processor):
             C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
             epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
             gamma=["scale", "auto"],
-            tol=[1e-3]
+            tol=[1e-3],
         )
 
         self.space = dict(
@@ -257,10 +262,8 @@ class MLPProcessor(Processor):
             solver=["lbfgs", "sgd", "adam"],
             alpha=[0.01, 0.5, 0.1],
             momentum=[0.9, 0.95],
-
             learning_rate=["constant", "invscaling", "adaptive"],
             learning_rate_init=[0.001, 0.005, 0.01],
-
             max_iter=[500],
             n_iter_no_change=[10],
             tol=[1e-4],

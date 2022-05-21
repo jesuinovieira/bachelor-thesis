@@ -61,7 +61,7 @@ class ExpandingWindow:
         return self.n_splits
 
 
-def crossvalidate(model, tscv, X, y, timestamps):
+def backtest(model, tscv, X, y, timestamps):
     # TODO: move to utils
     # Get y_true and y_hat for each cross validation iteration. Because of temporal
     # dependency, each split is always equal
