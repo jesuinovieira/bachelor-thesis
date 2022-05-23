@@ -39,39 +39,36 @@ def meteorological(src):
         }
     )
 
-    df.timestamp = pd.to_datetime(df.timestamp, format="%Y-%m-%d %H:%M:%S")
-    df = df.set_index("timestamp")
-
-    # FIXME: https://github.com/pandas-dev/pandas/issues/16381
     # TODO: this feature engineering should be here? If inside Source, data should be
     #  already daily sampled and we wouldn't be able to create the features
+
     # Feature engineering: create daily features based on the data
-    df["temperature_mean"] = df.temperature.resample("D").mean()
-    df["temperature_std"] = df.temperature.resample("D").std()
-    df["radiation_mean"] = df.radiation.resample("D").mean()
-    df["radiation_std"] = df.radiation.resample("D").std()
-    df["relative_humidity_mean"] = df.relative_humidity.resample("D").mean()
-    df["relative_humidity_std"] = df.relative_humidity.resample("D").std()
-    df["precipitation_mean"] = df.precipitation.resample("D").mean()
-    df["precipitation_std"] = df.precipitation.resample("D").std()
+    # Use dt.date, otherwise some days without measurement at midnight won't be
+    # considered. However, remove 2019-01-09 because measurements started too late
+    # https://github.com/pandas-dev/pandas/issues/16381
+    new = pd.DataFrame()
+    df.timestamp = pd.to_datetime(df.timestamp.dt.date, format="%Y-%m-%d %H:%M:%S")
+    df = df.set_index("timestamp")
 
-    # Drop old columns
-    df = df.drop(
-        columns=["temperature", "radiation", "precipitation", "relative_humidity"],
-        axis=1,
-    )
-
-    df = df.dropna()
+    new["temperature_mean"] = df.temperature.resample("D").mean()
+    new["temperature_std"] = df.temperature.resample("D").std()
+    new["radiation_mean"] = df.radiation.resample("D").mean()
+    new["radiation_std"] = df.radiation.resample("D").std()
+    new["relative_humidity_mean"] = df.relative_humidity.resample("D").mean()
+    new["relative_humidity_std"] = df.relative_humidity.resample("D").std()
+    new["precipitation_mean"] = df.precipitation.resample("D").mean()
+    new["precipitation_std"] = df.precipitation.resample("D").std()
+    new = new.drop(pd.Timestamp("2019-01-09"))
 
     # Reindex to fill missing dates (it will also remove data outside new idx range)
     idx = pd.date_range("2016-01-01", "2019-12-31", freq="D")
-    df = df.reindex(idx, fill_value=np.nan)
+    new = new.reindex(idx, fill_value=np.nan)
 
     dst = os.path.basename(src)
     dst = dst.replace(".xlsx", ".csv")
     dst = dst.lower().replace(" ", "-")
 
-    return df, dst
+    return new, dst
 
 
 # TODO: get from (?)
