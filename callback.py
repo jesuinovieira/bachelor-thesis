@@ -39,16 +39,28 @@ def meteorological(src):
         }
     )
 
-    # TODO: this feature engineering should be here? If inside Source, data should be
-    #  already daily sampled and we wouldn't be able to create the features
-
     # Feature engineering: create daily features based on the data
-    # Use dt.date, otherwise some days without measurement at midnight won't be
-    # considered. However, remove 2019-01-09 because measurements started too late
-    # https://github.com/pandas-dev/pandas/issues/16381
-    new = pd.DataFrame()
+    # Use df.timestamp.dt.date, otherwise some days without measurement at midnight
+    # won't be considered: https://github.com/pandas-dev/pandas/issues/16381
     df.timestamp = pd.to_datetime(df.timestamp.dt.date, format="%Y-%m-%d %H:%M:%S")
     df = df.set_index("timestamp")
+    new = pd.DataFrame()
+
+    # Following dates don't have measurement at 00:00:00, but have enough to resample
+    # 2017-01-14
+    # 2017-01-17
+    # 2018-01-01
+    # 2018-01-11
+
+    # Following dates don't have enough measurements to resample
+    # 2019-01-05
+    # 2019-01-06
+    # 2019-01-07
+    # 2019-01-08
+    # 2019-01-09
+
+    # TODO: this feature engineering should be here? If inside Source, data should be
+    #  already daily sampled and we wouldn't be able to create the features
 
     new["temperature_mean"] = df.temperature.resample("D").mean()
     new["temperature_std"] = df.temperature.resample("D").std()
@@ -59,6 +71,7 @@ def meteorological(src):
     new["precipitation_mean"] = df.precipitation.resample("D").mean()
     new["precipitation_std"] = df.precipitation.resample("D").std()
     new = new.drop(pd.Timestamp("2019-01-09"))
+    new = new.drop(pd.Timestamp("2016-02-29"))
 
     # Reindex to fill missing dates (it will also remove data outside new idx range)
     idx = pd.date_range("2016-01-01", "2019-12-31", freq="D")
