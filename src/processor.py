@@ -21,8 +21,42 @@ import src.backtest
 logger = logging.getLogger(__name__)
 
 
+def _getbacktest(df, wtype, wsize, forwhat):
+    testw = 7
+
+    if wtype == "EW" and wsize == "7D":
+        if forwhat == "model-selection":
+            trainw = len(df.loc["2016-01-01":"2017-12-31"])
+        else:
+            trainw = len(df.loc["2016-01-01":"2018-12-31"])
+
+        n_samples = len(df)
+        return df, src.backtest.ExpandingWindow(n_samples, trainw, testw)
+
+    if wtype == "SW" and wsize == "1Y7D":
+        if forwhat == "model-selection":
+            df = df.loc["2017-01-01":]
+            trainw = len(df.loc["2017-01-01":"2017-12-31"])
+        else:
+            df = df.loc["2018-01-01":]
+            trainw = len(df.loc["2018-01-01":"2018-12-31"])
+
+        n_samples = len(df)
+        return df, src.backtest.SlidingWindow(n_samples, trainw, testw)
+
+    if wtype == "SW" and wsize == "2Y7D":
+        if forwhat == "model-selection":
+            trainw = len(df.loc["2016-01-01":"2017-12-31"])
+        else:
+            df = df.loc["2017-01-01":]
+            trainw = len(df.loc["2017-01-01":"2018-12-31"])
+
+        n_samples = len(df)
+        return df, src.backtest.SlidingWindow(n_samples, trainw, testw)
+
+
 class Processor:
-    def __init__(self, name, df, cv, trainw, testw, output):
+    def __init__(self, name, df, backtest, output):
         self._name = name
         self.method = None
         self.model = None
@@ -33,15 +67,11 @@ class Processor:
         self.df = df
         self._scaler = MinMaxScaler()
 
-        self.cv = (
-            src.backtest.ExpandingWindow
-            if cv.upper() == "EW"
-            else src.backtest.SlidingWindow
-        )
+        wtype, wsize = backtest.split("-")
+        self.wtype = wtype
+        self.wsize = wsize
 
-        self.trainw = trainw
-        self.testw = testw
-        self.pr = ProcessorResults(name, df, cv, trainw, testw, path=output)
+        self.pr = ProcessorResults(name, df, backtest, path=output)
 
     def transform(self):
         self._scaler.fit(self.df)
@@ -56,20 +86,19 @@ class Processor:
         return self.pr
 
     def _ms(self):
-        # Split
-        train, test = train_test_split(self.df, test_size=0.2475, shuffle=False)
-        train = train.to_numpy()
-        X_train, y_train = train[:, 1:], train[:, 0].T
-        timestamps = self.df.index.to_numpy()
+        # Split data and construct backtest object
+        train, test = train_test_split(self.df, test_size=0.247, shuffle=False)
 
-        # NOTE: trainw and testw must be defined here
-        rows, _ = X_train.shape
-        cv = self.cv(n_samples=rows, trainw=self.trainw, testw=self.testw)
+        train, cv = _getbacktest(train, self.wtype, self.wsize, "model-selection")
+        timestamps = train.index.to_numpy()
+
+        data = train.to_numpy()
+        X_train, y_train = data[:, 1:], data[:, 0].T
 
         # Grid search
         scoring = "neg_root_mean_squared_error"
         search = GridSearchCV(
-            self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1, verbose=10
+            self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1  #, verbose=10
         )
         result = search.fit(X_train, y_train)
         self.best_params = result.best_params_
@@ -96,14 +125,12 @@ class Processor:
         logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
 
     def _me(self):
-        # Split
-        data = self.df.to_numpy()
-        X, y = data[:, 1:], data[:, 0].T
-        timestamps = self.df.index.to_numpy()
+        # Split data and construct backtest object
+        df, cv = _getbacktest(self.df, self.wtype, self.wsize, "model-evaluation")
+        timestamps = df.index.to_numpy()
 
-        # NOTE: trainw and testw must be defined here
-        rows, _ = X.shape
-        cv = self.cv(n_samples=rows, trainw=1092, testw=self.testw)
+        data = df.to_numpy()
+        X, y = data[:, 1:], data[:, 0].T
 
         # Backtest selected model on test set
         model = self.method(**self.defaults, **self.best_params)
@@ -130,8 +157,8 @@ class Processor:
 
 # NOTE: Ordinary Least Squares
 class LRProcessor(Processor):
-    def __init__(self, id, df, cv, trainw, testw, output):
-        super().__init__(id, df, cv, trainw, testw, output)
+    def __init__(self, id, df, backtest, output):
+        super().__init__(id, df, backtest, output)
         self.method = LinearRegression
         self.defaults = dict(fit_intercept=True)
         self.space = dict()
@@ -139,8 +166,8 @@ class LRProcessor(Processor):
 
 
 class KNNProcessor(Processor):
-    def __init__(self, id, df, cv, trainw, testw, output):
-        super().__init__(id, df, cv, trainw, testw, output)
+    def __init__(self, id, df, backtest, output):
+        super().__init__(id, df, backtest, output)
         self.method = KNeighborsRegressor
         self.defaults = dict(algorithm="auto")
 
@@ -197,8 +224,8 @@ class KNNProcessor(Processor):
 
 
 class SVRProcessor(Processor):
-    def __init__(self, id, df, cv, trainw, testw, output):
-        super().__init__(id, df, cv, trainw, testw, output)
+    def __init__(self, id, df, backtest, output):
+        super().__init__(id, df, backtest, output)
         self.method = SVR
         self.defaults = dict(cache_size=500)
 
@@ -231,8 +258,8 @@ class SVRProcessor(Processor):
 
 
 class MLPProcessor(Processor):
-    def __init__(self, id, df, cv, trainw, testw, output):
-        super().__init__(id, df, cv, trainw, testw, output)
+    def __init__(self, id, df, backtest, output):
+        super().__init__(id, df, backtest, output)
         self.method = MLPRegressor
         self.defaults = dict(shuffle=False, random_state=16)
 
@@ -288,15 +315,12 @@ class MLPProcessor(Processor):
 
 
 class ProcessorResults:
-    def __init__(self, name, df, cv, trainw, testw, path):
-        self.id = f"{name}-{cv}-{trainw}-{testw}"
+    def __init__(self, name, df, backtest, path):
+        self.id = f"{name}-{backtest}"
         self.df = df
+        self.backtest = backtest
         self.output = path
         self.model = None
-
-        self.cv = cv  # Cross validation method
-        self.trainw = trainw  # Train window
-        self.n_splits = testw  # Test window
 
         self.iteration = np.array([], dtype=int)
         self.timestamp = np.array([], dtype=np.datetime64)

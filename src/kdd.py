@@ -128,9 +128,7 @@ def _getprocessors(config, df, output):
         params = dict(
             id=f"{item[0]}{counter[method]}",
             df=df.copy(deep=True),
-            cv=item[1],
-            trainw=item[2],
-            testw=item[3],
+            backtest=item[1],
             output=output,
         )
 
