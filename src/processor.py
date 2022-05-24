@@ -67,6 +67,9 @@ class Processor:
         self.df = df
         self._scaler = MinMaxScaler()
 
+        # FIXME: backtest is hardcoded, only the following configurations are supported
+        assert backtest in ["EW-7D", "SW-1Y7D", "SW-2Y7D"]
+
         wtype, wsize = backtest.split("-")
         self.wtype = wtype
         self.wsize = wsize
@@ -98,7 +101,7 @@ class Processor:
         # Grid search
         scoring = "neg_root_mean_squared_error"
         search = GridSearchCV(
-            self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1  #, verbose=10
+            self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1, verbose=10
         )
         result = search.fit(X_train, y_train)
         self.best_params = result.best_params_
@@ -246,13 +249,13 @@ class SVRProcessor(Processor):
             tol=[1e-3],
         )
 
-        self.space = dict(
-            kernel=["rbf"],
-            C=[0.5, 1.0, 1.5],
-            epsilon=[0.05],
-            gamma=["scale"],
-            tol=[1e-3],
-        )
+        # self.space = dict(
+        #     kernel=["rbf"],
+        #     C=[0.5, 1.0, 1.5],
+        #     epsilon=[0.05],
+        #     gamma=["scale"],
+        #     tol=[1e-3],
+        # )
 
         self.model = SVR(**self.defaults)
 

@@ -12,7 +12,7 @@
         "output-folder": "data"
     },
     "processor": {
-        "methods": ["LR"],
+        "methods": ["LR", "KNN", "SVR", "MLP"],
         "backtest": ["EW-7D", "SW-1Y7D", "SW-2Y7D"]
     }
 }
