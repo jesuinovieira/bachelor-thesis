@@ -31,6 +31,25 @@ import src.plot as plot
 # )
 # ======================================================================================
 
+linestyles = (
+    ('solid', (0, ())),
+    # ('loosely dotted', (0, (1, 10))),
+    # ('dotted', (0, (1, 5))),
+    # ('densely dotted', (0, (1, 1))),
+
+    # ('loosely dashed', (0, (5, 10))),
+    ('dashed', (0, (5, 5))),
+    ('densely dashed', (0, (5, 1))),
+
+    # ('loosely dashdotted', (0, (3, 10, 1, 10))),
+    ('dashdotted', (0, (3, 5, 1, 5))),
+    ('densely dashdotted', (0, (3, 1, 1, 1))),
+
+    ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
+    ('dashdotdotted', (0, (3, 5, 1, 5, 1, 5))),
+    ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))
+)
+
 
 def _getmetrics(ytrue, yhat, decimals=2):
     r2 = round(r2_score(ytrue, yhat), decimals)
@@ -124,11 +143,16 @@ class Sink:
         df = self.metrics[self.metrics.index.isin(indexes)]
         return df
 
-    def _getpredictions(self, id, split="test"):
+    def _getpredictions(self, id, split="test", iteration=False):
         for pr in self.prs:
             if pr.id == id:
                 df = pr.df[pr.df.split == split]
-                data = {"yhat": df.yhat, "ytrue": df.ytrue}
+                if iteration:
+                    data = {
+                        "yhat": df.yhat, "ytrue": df.ytrue, "iteration": df.iteration
+                    }
+                else:
+                    data = {"yhat": df.yhat, "ytrue": df.ytrue}
                 df = pd.DataFrame(data=data, index=df.index)
                 df.index = pd.to_datetime(df.index)
                 return df
@@ -139,6 +163,8 @@ class Sink:
             if overview:
                 self.barofbests(pdf)
                 self.lineofbests(pdf)
+                self.errorovertime(pdf, "val")
+                self.errorovertime(pdf, "test")
                 self.lineofbest(pdf)
 
             if detailed:
@@ -149,6 +175,43 @@ class Sink:
             # Temporary
             # self.weekly(pdf)
             self.monthly(pdf)
+
+    def errorovertime(self, pdf, split):
+        fig, ax = plt.subplots(1, 1)
+        colors = sns.color_palette()
+        labels = []
+
+        for i, method in enumerate(self.methods):
+            # Select the model with the best performance based on some metric
+            filtered = self._getbest(method)
+
+            if filtered.empty:
+                continue
+
+            labels.append(filtered.index[0])
+            dfpred = self._getpredictions(
+                filtered.index[0], split=split, iteration=True
+            )
+            ls = [linestyles[i + 1][1][1], linestyles[0][1][1]]
+            palette = [colors[i + 1], colors[0]]
+
+            # Compute RMSE for each backtest iteration
+            rmse = []
+            iterations = dfpred.iteration.unique()
+            for iteration in iterations:
+                chunk = dfpred[dfpred.iteration == iteration]
+                rmse.append(((chunk.ytrue - chunk.yhat) ** 2).mean() ** .5)
+
+            # y = abs(dfpred.yhat - dfpred.ytrue)
+            sns.lineplot(data=rmse, dashes=ls, palette=palette, ax=ax)
+
+            # markers = ["v", "o"]
+            # for i, line in enumerate(ax.get_lines()):
+            #     line.set_marker(markers[i])
+
+        plt.title(f"RMSE per backtest iteration")
+        plt.legend(labels=labels)
+        plot.wrapup(pdf)
 
     def barofbests(self, pdf):
         df = self._boem()
@@ -185,25 +248,6 @@ class Sink:
         plot.wrapup(pdf)
 
     def lineofbests(self, pdf):
-        linestyles = (
-            ('solid', (0, ())),
-            # ('loosely dotted', (0, (1, 10))),
-            # ('dotted', (0, (1, 5))),
-            # ('densely dotted', (0, (1, 1))),
-
-            # ('loosely dashed', (0, (5, 10))),
-            ('dashed', (0, (5, 5))),
-            ('densely dashed', (0, (5, 1))),
-
-            # ('loosely dashdotted', (0, (3, 10, 1, 10))),
-            ('dashdotted', (0, (3, 5, 1, 5))),
-            ('densely dashdotted', (0, (3, 1, 1, 1))),
-
-            ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
-            ('dashdotdotted', (0, (3, 5, 1, 5, 1, 5))),
-            ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))
-        )
-
         fig, ax = plt.subplots(1, 1)
         colors = sns.color_palette()
         labels = []
