@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 import src.utils as utils
+from src.ssa import SSA
 
 logger = logging.getLogger(__name__)
 
@@ -72,23 +73,20 @@ class Source:
         # [x] Remove noise
         # [ ] Remove outliers
         # [ ] Handle missing values
-        # [ ] Onehotencoding (?) this is not cleaning, but might be... what?
+        # [ ] One hot encoding (?) this is not cleaning, but might be... what?
 
         df = df.dropna()  # Drop rows with any missing value
         df = df.round(2)  # Round numeric columns
 
-        # @d2: data smoothing
+        # @d2: noise reduction
         # ==============================================================================
+        # TODO: add config to enable or disable
+        # TODO: filter test set too?
         ts = df.water_produced.to_numpy()
 
-        from scipy.signal import savgol_filter
-        from src.ssa import SSA
-
         L, r = 2, 0
+        # L, r = 7, slice(0, 1)
         df.water_produced = SSA(ts, L).reconstruct(r=r)
-
-        # w, p, mode = 5, 2, "interp"
-        # df.water_produced = savgol_filter(ts, w, p, mode=mode)
         # ==============================================================================
 
         return df
