@@ -56,7 +56,9 @@ def yearly(df, city, pdf, show):
         chunk = df.loc[f"{year}"]
         corr = chunk.corr().iloc[0, 1]
 
-        title = f"corr={round(corr, 2)}"
+        length = len(chunk["consumed-gtba"]) - chunk["consumed-gtba"].isna().sum()
+
+        title = f"corr={round(corr, 2)}, len={length}"
         chunk.plot(rot=90, grid=True, ax=ax, use_index=True, title=title)
         ax.set_xlabel(None)
 
@@ -162,22 +164,36 @@ def E3(df):
 
 
 def main():
+    sns.set_theme()
+    sns.set_style("whitegrid")
+
     # @ufpr-diario: consumido nos reservatorios
     # @vp-ufpr: produzido nas ETAs
 
     df = read("eda/data/raw/merged.csv")
-
     df = df.drop(columns=["consumed-sum-pp", "consumed-sum-gtba"])
 
     df["consumed-pp"] = df["consumed-pp"][df["consumed-pp"] > 0]
     df["consumed-gtba"] = df["consumed-gtba"][df["consumed-gtba"] > 0]
-
     df["consumed-pp"] = df["consumed-pp"][~outliers(df["consumed-pp"])]
-    # Note: the filter is applied two times in order to get a decent time series
-    df["consumed-gtba"] = df["consumed-gtba"][~outliers(df["consumed-gtba"])]
-    df["consumed-gtba"] = df["consumed-gtba"][~outliers(df["consumed-gtba"])]
 
-    # E0(df)
+    # Filter consumed data based on produced
+    total = len(df["consumed-gtba"])
+    l1 = df["consumed-gtba"].isna().sum()
+
+    df["consumed-gtba"] = df["consumed-gtba"][
+        df["consumed-gtba"] <= df["produced-gtba"].max()
+    ]
+    df["consumed-gtba"] = df["consumed-gtba"][
+        df["consumed-gtba"] >= df["produced-gtba"].min()
+    ]
+
+    l2 = df["consumed-gtba"].isna().sum()
+    removed = round((l2 - l1) * 100 / (total - l1), 2)
+
+    print(f"Number of rows: {total - l1}")
+    print(f"Number of deleted rows: {l2 - l1} ({removed}%)")
+
     E1(df)
     E2(df)
     E3(df)
