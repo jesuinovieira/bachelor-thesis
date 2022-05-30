@@ -147,7 +147,7 @@ class SSA(object):
         _min = 0
         _max = self.d
 
-        ax = plt.imshow(self.wcorr)
+        ax = plt.imshow(self.wcorr, cmap="gray_r")
         plt.xlabel(r"$\tilde{F}_i$")
         plt.ylabel(r"$\tilde{F}_j$")
         plt.colorbar(ax.colorbar, fraction=0.045)
