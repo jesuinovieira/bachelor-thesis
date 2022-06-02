@@ -56,7 +56,7 @@ def yearly(df, city, pdf, show):
         chunk = df.loc[f"{year}"]
         corr = chunk.corr().iloc[0, 1]
 
-        length = len(chunk["consumed-gtba"]) - chunk["consumed-gtba"].isna().sum()
+        length = len(chunk[f"consumed-{city}"]) - chunk[f"consumed-{city}"].isna().sum()
 
         title = f"corr={round(corr, 2)}, len={length}"
         chunk.plot(rot=90, grid=True, ax=ax, use_index=True, title=title)
@@ -163,6 +163,13 @@ def E3(df):
         E23P(tmp, "consumed", pdf, False)
 
 
+def missingv(s):
+    total = len(s)
+    non = s.isna().sum()
+    missing = round(non * 100 / total, 2)
+    print(f"total={total}, nan={non}, notnan={total - non}, missing={missing}%")
+
+
 def main():
     sns.set_theme()
     sns.set_style("whitegrid")
@@ -177,26 +184,51 @@ def main():
     df["consumed-gtba"] = df["consumed-gtba"][df["consumed-gtba"] > 0]
     df["consumed-pp"] = df["consumed-pp"][~outliers(df["consumed-pp"])]
 
+    missingv(df["consumed-gtba"])
+
     # Filter consumed data based on produced
-    total = len(df["consumed-gtba"])
-    l1 = df["consumed-gtba"].isna().sum()
+    consumed = df["consumed-gtba"]
 
-    df["consumed-gtba"] = df["consumed-gtba"][
-        df["consumed-gtba"] <= df["produced-gtba"].max()
-    ]
-    df["consumed-gtba"] = df["consumed-gtba"][
-        df["consumed-gtba"] >= df["produced-gtba"].min()
-    ]
+    # print(
+    #     f"{consumed[consumed > df['produced-gtba'].max()].count()}, "
+    #     f"{consumed[consumed < df['produced-gtba'].min()].count()}"
+    # )
+    # consumed = consumed[~outliers(consumed)]
 
-    l2 = df["consumed-gtba"].isna().sum()
-    removed = round((l2 - l1) * 100 / (total - l1), 2)
+    consumed = consumed[consumed <= df["produced-gtba"].max()]
+    consumed = consumed[consumed >= df["produced-gtba"].min()]
+    df["consumed-gtba"] = consumed
 
-    print(f"Number of rows: {total - l1}")
-    print(f"Number of deleted rows: {l2 - l1} ({removed}%)")
+    missingv(df["consumed-gtba"])
+    missingv(df["produced-gtba"])
 
     E1(df)
     E2(df)
     E3(df)
+
+    with PdfPages(f"eda/output/carnival.pdf") as pdf:
+        # fig, axs = plt.subplots(1, 1)
+
+        tmp = df.loc["2017-01-01":"2017-12-31"]
+        column = "produced-gtba"
+
+        axs = plt.axes()
+        axs.plot(tmp[column])
+
+        start = tmp.index.get_loc("2017-03-01") - 7
+        end = tmp.index.get_loc("2017-03-06") + 7
+
+        tmp = tmp.reset_index()
+
+        x1 = start  # tmp.index[start]
+        x2 = end  # tmp.index[end]
+        y1 = 15000
+        y2 = 25000
+        # y1 = min(tmp[column][start:end]) - np.std(tmp[column][start:end])
+        # y2 = max(tmp[column][start:end]) + np.std(tmp[column][start:end])
+
+        src.plot.zoomin(tmp[column], (x1, x2), (y1, y2), axs)
+        src.plot.wrapup(pdf, False)
 
 
 if __name__ == "__main__":
