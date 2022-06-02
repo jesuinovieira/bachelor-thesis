@@ -275,6 +275,12 @@ class MLPProcessor(Processor):
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
 
+        # Plot error metrics by epoch (investigate)
+        # Add logarithmic space or so
+
+        # NOTE: 9.2 The Neural Network Model (practical ts forecasting with r)
+        # https://blog.slavv.com/37-reasons-why-your-neural-network-is-not-working-4020854bd607?gi=f30a08209b6c
+
         # hidden_layer_sizes=[
         #     # (8,), (16,), (32,),
         #     # (8, 2), (16, 2), (32, 2),
