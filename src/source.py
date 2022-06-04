@@ -84,8 +84,11 @@ class Source:
         # TODO: filter test set too?
         ts = df.water_produced.to_numpy()
 
-        L, r = 2, 0
-        # L, r = 7, slice(0, 1)
+        # L, r = 365, slice(0, 42)
+        # L, r = 365, slice(0, 63)
+        # L, r = 555, slice(0, 70)
+        L, r = 555, slice(0, 72)
+        # L, r = 555, slice(0, 80)
         df.water_produced = SSA(ts, L).reconstruct(r=r)
         # ==============================================================================
 
