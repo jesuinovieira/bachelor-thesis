@@ -136,7 +136,7 @@ class SSA(object):
                 )
                 self.wcorr[j, i] = self.wcorr[i, j]
 
-    def plotwcorr(self, plt):
+    def plotwcorr(self, ax, sns, plt):
         """Plots the w-correlation matrix for the decomposed time series.
 
         :param plt: matplotlib pyplot
@@ -147,14 +147,22 @@ class SSA(object):
         _min = 0
         _max = self.d
 
-        ax = plt.imshow(self.wcorr, cmap="gray_r")
-        plt.xlabel(r"$\tilde{F}_i$")
-        plt.ylabel(r"$\tilde{F}_j$")
-        plt.colorbar(ax.colorbar, fraction=0.045)
-        ax.colorbar.set_label("$W_{i,j}$")
-        plt.clim(0, 1)
+        # Define a cmap
+        rbg = np.linspace(0, 1, 10)[::-1]
+        cmap = [(item, item, item) for item in rbg]
+        # cmap[1] = cmap[2] = cmap[3] = cmap[4]
+        # cmap[5] = cmap[6] = cmap[7] = cmap[8]
+
+        cmap = "gray_r"
+
+        sns.heatmap(self.wcorr, ax=ax, cmap=cmap)
+        # plt.xlabel(r"$\tilde{F}_i$")
+        # plt.ylabel(r"$\tilde{F}_j$")
+        # plt.colorbar(ax.colorbar, fraction=0.045)
+        # ax.colorbar.set_label("$W_{i,j}$")
+        # plt.clim(0, 1)
 
         # For plotting purposes
-        max_rnge = _max - 1
-        plt.xlim(_min - 0.5, max_rnge + 0.5)
-        plt.ylim(max_rnge + 0.5, _min - 0.5)
+        # max_rnge = _max - 1
+        # plt.xlim(_min - 0.5, max_rnge + 0.5)
+        # plt.ylim(max_rnge + 0.5, _min - 0.5)
