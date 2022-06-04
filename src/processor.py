@@ -249,13 +249,13 @@ class SVRProcessor(Processor):
             tol=[1e-3],
         )
 
-        # self.space = dict(
-        #     kernel=["rbf"],
-        #     C=[0.5, 1.0, 1.5],
-        #     epsilon=[0.05],
-        #     gamma=["scale"],
-        #     tol=[1e-3],
-        # )
+        self.space = dict(
+            kernel=["rbf"],
+            C=[0.5, 1.0, 1.5],
+            epsilon=[0.05],
+            gamma=["scale"],
+            tol=[1e-3],
+        )
 
         self.model = SVR(**self.defaults)
 
@@ -296,29 +296,31 @@ class MLPProcessor(Processor):
             solver=["lbfgs", "sgd", "adam"],
             alpha=[0.01, 0.5, 0.1],
             momentum=[0.9, 0.95],
+
             learning_rate=["constant", "invscaling", "adaptive"],
             learning_rate_init=[0.001, 0.005, 0.01],
+
             max_iter=[500],
             n_iter_no_change=[10],
             tol=[1e-4],
             early_stopping=[True],
         )
 
-        # self.space = dict(
-        #     hidden_layer_sizes=[(13,)],
-        #     activation=["tanh", "relu"],
-        #     solver=["lbfgs"],
-        #     alpha=[0.05, 0.1],
-        #     momentum=[0.9],
-        #
-        #     learning_rate=["constant"],
-        #     learning_rate_init=[0.005, 0.001],
-        #
-        #     max_iter=[500],
-        #     n_iter_no_change=[10],
-        #     tol=[1e-4],
-        #     early_stopping=[True],
-        # )
+        self.space = dict(
+            hidden_layer_sizes=[(13,)],
+            activation=["tanh", "relu"],
+            solver=["lbfgs"],
+            alpha=[0.05, 0.1],
+            momentum=[0.9],
+
+            learning_rate=["constant"],
+            learning_rate_init=[0.005, 0.001],
+
+            max_iter=[500],
+            n_iter_no_change=[10],
+            tol=[1e-4],
+            early_stopping=[True],
+        )
 
         self.model = MLPRegressor(**self.defaults)
 
