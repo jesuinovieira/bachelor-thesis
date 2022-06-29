@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import pandas as pd
+from sklearn.impute import KNNImputer
 
 import src.utils as utils
 from src.ssa import SSA
@@ -72,10 +73,17 @@ class Source:
         # [ ] Make it configurable?
         # [x] Remove noise
         # [ ] Remove outliers
-        # [ ] Handle missing values
+        # [x] Handle missing values
         # [ ] One hot encoding (?) this is not cleaning, but might be... what?
 
-        df = df.dropna()  # Drop rows with any missing value
+        # Impute missing values
+        # ==============================================================================
+
+        imp = KNNImputer(n_neighbors=5)
+        df = pd.DataFrame(imp.fit_transform(df), columns=df.columns, index=df.index)
+        # df = df.dropna()  # Drop rows with any missing value
+
+        df = df.drop(pd.Timestamp("2016-02-29"))  # Remove leap year extra day
         df = df.round(2)  # Round numeric columns
 
         # @d2: noise reduction
