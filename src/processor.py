@@ -90,7 +90,7 @@ class Processor:
 
     def _ms(self):
         # Split data and construct backtest object
-        train, test = train_test_split(self.df, test_size=0.247, shuffle=False)
+        train, test = train_test_split(self.df, test_size=0.25, shuffle=False)
 
         train, cv = _getbacktest(train, self.wtype, self.wsize, "model-selection")
         timestamps = train.index.to_numpy()
@@ -100,6 +100,7 @@ class Processor:
 
         # Grid search
         scoring = "neg_root_mean_squared_error"
+        # scoring = "neg_mean_absolute_error"
         search = GridSearchCV(
             self.model, self.space, cv=cv, scoring=scoring, n_jobs=-1, verbose=10
         )
@@ -274,6 +275,9 @@ class MLPProcessor(Processor):
         #
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
+        #
+        # Googlit: tune hyperparameters for regression machine learning algorithms
+        # https://github.com/hyperopt/hyperopt-sklearn
 
         # Plot error metrics by epoch (investigate)
         # Add logarithmic space or so

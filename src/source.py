@@ -68,20 +68,14 @@ class Source:
 
     @staticmethod
     def _clean(df):
-        # Ideas:
-        #
         # [ ] Make it configurable?
         # [x] Remove noise
-        # [ ] Remove outliers
+        # [ ] Remove outliers per column
         # [x] Handle missing values
-        # [ ] One hot encoding (?) this is not cleaning, but might be... what?
 
         # Impute missing values
-        # ==============================================================================
-
         imp = KNNImputer(n_neighbors=5)
         df = pd.DataFrame(imp.fit_transform(df), columns=df.columns, index=df.index)
-        # df = df.dropna()  # Drop rows with any missing value
 
         df = df.drop(pd.Timestamp("2016-02-29"))  # Remove leap year extra day
         df = df.round(2)  # Round numeric columns
@@ -125,8 +119,10 @@ class Source:
         # FIXME: hardcoded
         # Create a feature that is the union of holidays in the three cities
         df["is_holiday_ctba_gtba_jve"] = (
-            df.is_holiday_curitiba | df.is_holiday_guaratuba | df.is_holiday_joinville
-        )
+            df.is_holiday_curitiba.astype(bool)
+            | df.is_holiday_guaratuba.astype(bool)
+            | df.is_holiday_joinville.astype(bool)
+        ).astype(float)
         df = df.drop(
             ["is_holiday_curitiba", "is_holiday_guaratuba", "is_holiday_joinville"],
             axis=1,
