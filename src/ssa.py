@@ -150,8 +150,8 @@ class SSA(object):
         # Define a cmap
         rbg = np.linspace(0, 1, 10)[::-1]
         cmap = [(item, item, item) for item in rbg]
-        # cmap[1] = cmap[2] = cmap[3] = cmap[4]
-        # cmap[5] = cmap[6] = cmap[7] = cmap[8]
+        cmap[1] = cmap[2] = cmap[3] = cmap[4]
+        cmap[5] = cmap[6] = cmap[7] = cmap[8]
 
         cmap = "gray_r"
 

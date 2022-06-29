@@ -84,13 +84,9 @@ class Source:
         # ==============================================================================
         # TODO: add config to enable or disable
         # TODO: filter test set too?
-        ts = df.water_produced.to_numpy()
 
-        # L, r = 365, slice(0, 42)
-        # L, r = 365, slice(0, 63)
-        # L, r = 555, slice(0, 70)
-        L, r = 555, slice(0, 72)
-        # L, r = 555, slice(0, 80)
+        ts = df.water_produced.to_numpy()
+        L, r = 560, slice(0, 108)
         df.water_produced = SSA(ts, L).reconstruct(r=r)
         # ==============================================================================
 
