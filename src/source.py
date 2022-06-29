@@ -74,7 +74,7 @@ class Source:
         # [x] Handle missing values
 
         # Impute missing values
-        imp = KNNImputer(n_neighbors=5)
+        imp = KNNImputer(n_neighbors=5, weights="distance")
         df = pd.DataFrame(imp.fit_transform(df), columns=df.columns, index=df.index)
 
         df = df.drop(pd.Timestamp("2016-02-29"))  # Remove leap year extra day
