@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import pickle
 
@@ -175,54 +176,17 @@ class KNNProcessor(Processor):
         self.method = KNeighborsRegressor
         self.defaults = dict(algorithm="auto")
 
-        # NOTE: A escolha da proximidade utilizada é fundamental para o kNN!
-        # - Algorithm (brute, ball_tree or kd_tree) don't change the result, right?
-        # - Any other metric than euclidean distance to grid search? (It's fast!)
-
         self.space = dict(
-            n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27],
+            n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29],
             weights=["uniform", "distance"],
-            metric=[
-                "euclidean",
-                "l2",
-                "l1",
-                "manhattan",
-                "cityblock",
-                "braycurtis",
-                "canberra",
-                "chebyshev",
-                "correlation",
-                "cosine",
-                "hamming",
-                "minkowski",
-                "nan_euclidean",
-                # ----------------------------------------------------------------------
-                # "haversine" (only valid for 2d)
-                # "wminkowski" (requires a weight vector `w` to be given)
-                # "yule" (data was converted to boolean)
-                # "sokalsneath" (data was converted to boolean)
-                # "sokalmichener" (data was converted to boolean)
-                # "sqeuclidean" ('V' parameter is required when Y is passed)
-                # "russellrao" (data was converted to boolean)
-                # "rogerstanimoto" (data was converted to boolean)
-                # "seuclidean" ('V' parameter is required when Y is passed)
-                # "matching" (data was converted to boolean)
-                # "mahalanobis" ('VI' parameter is required when Y is passed)
-                # "kulsinski" (data was converted to boolean)
-                # "jaccard" (data was converted to boolean)
-                # "dice" (data was converted to boolean)
-            ],
+            metric=["euclidean", "manhattan"],
         )
 
-        self.space = dict(
-            n_neighbors=[7, 9, 11, 13],
-            weights=["uniform", "distance"],
-            metric=[
-                "euclidean",
-                "braycurtis",
-                "canberra",
-            ],
-        )
+        # self.space = dict(
+        #     n_neighbors=[7, 9, 11, 13],
+        #     weights=["uniform", "distance"],
+        #     metric=["euclidean", "manhattan"],
+        # )
 
         self.model = KNeighborsRegressor(**self.defaults)
 
@@ -233,30 +197,28 @@ class SVRProcessor(Processor):
         self.method = SVR
         self.defaults = dict(cache_size=500)
 
-        # TODO: improve epsilon, gamma and tol (?)
-        # https://scikit-learn.org/stable/auto_examples/svm/plot_rbf_parameters.html#sphx-glr-auto-examples-svm-plot-rbf-parameters-py
-        # - C: if you have a lot of noisy observations you should decrease it.
-        #   Decreasing C corresponds to more regularization
-        # - One is advised to use GridSearchCV with C and gamma spaced exponentially far
-        #   apart to choose good values
-        # - In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient
-        # - 'gamma': [1e-7, 1e-4],'epsilon':[0.1,0.2,0.5,0.3]
+        # C: if you have a lot of noisy observations you should decrease it.
+        #
+        # One is advised to use GridSearchCV with C and gamma spaced exponentially far
+        # apart to choose good values
+        #
+        # In practice, a logarithmic grid from 10^-3 to 10^+3 is usually sufficient. If
+        # the best parameters lie on the boundaries of the grid, it can be extended in
+        # that direction in a subsequent search.
 
         self.space = dict(
             kernel=["linear", "poly", "rbf", "sigmoid"],
-            C=[0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0],
-            epsilon=[0.01, 0.05, 0.1, 0.5, 1.0],
+            C=np.logspace(math.log10(0.001), math.log10(100), 10),
+            epsilon=np.logspace(math.log10(0.001), math.log10(0.1), 10),
             gamma=["scale", "auto"],
-            tol=[1e-3],
         )
 
-        self.space = dict(
-            kernel=["rbf"],
-            C=[0.5, 1.0, 1.5],
-            epsilon=[0.05],
-            gamma=["scale"],
-            tol=[1e-3],
-        )
+        # self.space = dict(
+        #     kernel=["rbf"],
+        #     C=[0.5, 1.0, 1.5],
+        #     epsilon=[0.05],
+        #     gamma=["scale"],
+        # )
 
         self.model = SVR(**self.defaults)
 
@@ -265,66 +227,41 @@ class MLPProcessor(Processor):
     def __init__(self, id, df, backtest, output):
         super().__init__(id, df, backtest, output)
         self.method = MLPRegressor
-        self.defaults = dict(shuffle=False, random_state=16)
+        self.defaults = dict(
+            shuffle=False, early_stopping=True, max_iter=1000, random_state=16
+        )
 
         # TODO: MLP with Keras?
         # TODO: training and validation error plots
 
+        # Googlit: tune hyperparameters for regression machine learning algorithms
+        # https://github.com/hyperopt/hyperopt-sklearn
+        #
         # https://scikit-learn.org/stable/modules/neural_networks_supervised.html#mlp-tips
         # https://scikit-learn.org/stable/auto_examples/neural_networks/plot_mlp_alpha.html#sphx-glr-auto-examples-neural-networks-plot-mlp-alpha-py
         #
         # Hence do not loop through with different max_iterations, try to tweak the tol
         # and n_iter_no_change if you want to avoid the overfitting.
-        #
-        # Googlit: tune hyperparameters for regression machine learning algorithms
-        # https://github.com/hyperopt/hyperopt-sklearn
-
-        # Plot error metrics by epoch (investigate)
-        # Add logarithmic space or so
-
-        # NOTE: 9.2 The Neural Network Model (practical ts forecasting with r)
-        # https://blog.slavv.com/37-reasons-why-your-neural-network-is-not-working-4020854bd607?gi=f30a08209b6c
-
-        # hidden_layer_sizes=[
-        #     # (8,), (16,), (32,),
-        #     # (8, 2), (16, 2), (32, 2),
-        #     # (8, 4), (16, 4), (32, 4),
-        #     # (8, 8), (16, 8), (32, 8),
-        #
-        #     (13,), (13, 2),
-        # ],
 
         self.space = dict(
-            hidden_layer_sizes=[(13,), (21,), (29,)],
-            activation=["logistic", "tanh", "relu"],
-            solver=["lbfgs", "sgd", "adam"],
-            alpha=[0.01, 0.5, 0.1],
-            momentum=[0.9, 0.95],
-
-            learning_rate=["constant", "invscaling", "adaptive"],
-            learning_rate_init=[0.001, 0.005, 0.01],
-
-            max_iter=[500],
-            n_iter_no_change=[10],
-            tol=[1e-4],
-            early_stopping=[True],
-        )
-
-        self.space = dict(
-            hidden_layer_sizes=[(13,)],
+            hidden_layer_sizes=[
+                (11,), (13,), (15,), (17,), (19,), (21,), (23,), (25,),
+            ],
             activation=["tanh", "relu"],
-            solver=["lbfgs"],
-            alpha=[0.05, 0.1],
-            momentum=[0.9],
+            solver=["lbfgs", "sgd", "adam"],
 
-            learning_rate=["constant"],
-            learning_rate_init=[0.005, 0.001],
-
-            max_iter=[500],
-            n_iter_no_change=[10],
-            tol=[1e-4],
-            early_stopping=[True],
+            alpha=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
+            learning_rate_init=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
         )
+
+        # self.space = dict(
+        #     hidden_layer_sizes=[(13,),],
+        #     activation=["tanh"],
+        #     solver=["lbfgs"],
+        #
+        #     alpha=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
+        #     learning_rate_init=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
+        # )
 
         self.model = MLPRegressor(**self.defaults)
 
