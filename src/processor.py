@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.model_selection import GridSearchCV
@@ -124,10 +125,11 @@ class Processor:
 
         rmse = round(mean_squared_error(ytrue, yhat, squared=False), 2)
         mape = round(mean_absolute_percentage_error(ytrue, yhat), 2)
+        mae = round(mean_absolute_error(ytrue, yhat), 2)
         r2 = round(r2_score(ytrue, yhat), 2)
 
         logger.info(f"Best params for '{self._name}': {result.best_params_}")
-        logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
+        logger.info(f"[val]  RMSE={rmse}, MAPE={mape:.2f}, MAE={mae:.2f}, R2={r2:.2f}")
 
     def _me(self):
         # Split data and construct backtest object
@@ -151,9 +153,10 @@ class Processor:
 
         rmse = round(mean_squared_error(ytrue, yhat, squared=False), 2)
         mape = round(mean_absolute_percentage_error(ytrue, yhat), 2)
+        mae = round(mean_absolute_error(ytrue, yhat), 2)
         r2 = round(r2_score(ytrue, yhat), 2)
 
-        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, R2={r2:.2f}")
+        logger.info(f"[test] RMSE={rmse}, MAPE={mape:.2f}, MAE={mae:.2f}, R2={r2:.2f}")
         self.pr.save(model)
 
     def predict(self, X):
@@ -227,13 +230,16 @@ class MLPProcessor(Processor):
     def __init__(self, id, df, backtest, output):
         super().__init__(id, df, backtest, output)
         self.method = MLPRegressor
+        # fmt: off
         self.defaults = dict(
-            shuffle=False, early_stopping=True, max_iter=1000, random_state=16
+            shuffle=False, early_stopping=True, max_iter=1000, random_state=16,
+            batch_size=16
         )
+        # fmt: on
 
         # TODO: MLP with Keras?
         # TODO: training and validation error plots
-
+        #
         # Googlit: tune hyperparameters for regression machine learning algorithms
         # https://github.com/hyperopt/hyperopt-sklearn
         #
@@ -244,23 +250,18 @@ class MLPProcessor(Processor):
         # and n_iter_no_change if you want to avoid the overfitting.
 
         self.space = dict(
-            hidden_layer_sizes=[
-                (11,), (13,), (15,), (17,), (19,), (21,), (23,), (25,),
-            ],
+            hidden_layer_sizes=[(11,), (13,), (15,), (17,), (19,), (21,), (23,)],
             activation=["tanh", "relu"],
             solver=["lbfgs", "sgd", "adam"],
-
-            alpha=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
+            alpha=np.logspace(math.log10(0.01), math.log10(1.0), 10),
             learning_rate_init=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
         )
 
         # self.space = dict(
-        #     hidden_layer_sizes=[(13,),],
-        #     activation=["tanh"],
+        #     hidden_layer_sizes=[(13,), (15,), (21,)],
+        #     activation=["tanh", "relu"],
         #     solver=["lbfgs"],
-        #
-        #     alpha=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
-        #     learning_rate_init=np.logspace(math.log10(0.0001), math.log10(0.01), 5),
+        #     alpha=np.logspace(math.log10(0.01), math.log10(1.0), 5),
         # )
 
         self.model = MLPRegressor(**self.defaults)
