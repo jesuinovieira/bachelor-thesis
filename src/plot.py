@@ -1,5 +1,4 @@
 import dateutil.parser
-
 import calplot
 import seaborn as sns
 import matplotlib.dates as mdates
@@ -7,24 +6,118 @@ import pandas as pd
 import scipy.stats
 from matplotlib import pyplot as plt
 from matplotlib import rcParams
+from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 
+# TODO: sex matplotlib text to black!
+# TODO: latex and seaborn (googlit)
 
 # Set matplotlib runtime configuration
-DPI = 100
-rcParams["figure.autolayout"] = True
-rcParams["figure.figsize"] = (1920 / DPI, 986 / DPI)
-rcParams["font.family"] = "monospace"
+# --------------------------------------------------------------------------------------
+# http://aeturrell.com/2018/01/31/publication-quality-plots-in-python/
+# https://scipy-cookbook.readthedocs.io/items/Matplotlib_LaTeX_Examples.html#Setting-Font-Sizes
+# https://matplotlib.org/stable/tutorials/introductory/customizing.html#customizing-with-style-sheets
+# print(rcParams.keys())
 
-# Colors
-DB = "darkblue"
-RB = "royalblue"
-DO = "darkorange"
-CB = "cornflowerblue"
+# NOTE: different palette
+#  https://stackoverflow.com/questions/46148193/how-to-set-default-matplotlib-axis-colour-cycle
+#  Seaborn in fact has six variations of matplotlib’s palette, called deep, muted,
+#  pastel, bright, dark, and colorblind. These span a range of average luminance and
+#  saturation values: https://seaborn.pydata.org/tutorial/color_palettes.html
 
-# Basic params
-params = {"linestyle": "-", "linewidth": 1.0, "marker": "o", "markersize": 2.0}
+# Computer Modern Sanf Serif
+# https://seaborn.pydata.org/generated/seaborn.axes_style.html#seaborn.axes_style
+
+# TODO: https://matplotlib.org/stable/users/explain/backends.html
+
+# TODO:
+#  1. Set sns grid manually (color)
+#  2. Set palette (see note above)
+#  3. Maybe let even the black from seaborn in text..
+# sns.set_theme(style="whitegrid", palette="pastel")
+sns.set_theme()
+sns.set_style("whitegrid")
+palette = sns.color_palette("colorblind")
+
+SIZE = 8
+COLOR = "black"
+params = {
+    "backend": "ps",
+    # "backend": "Agg",
+
+    "axes.titlesize": SIZE,
+    "axes.labelsize": SIZE,
+    "font.size": SIZE,
+    # "text.fontsize": SIZE,
+    "legend.fontsize": SIZE,
+    "xtick.labelsize": SIZE,
+    "ytick.labelsize": SIZE,
+    "text.usetex": True,
+    "font.family": "serif",
+    "text.color": COLOR,
+    "axes.labelcolor": COLOR,
+    "xtick.color": COLOR,
+    "ytick.color": COLOR,
+}
+
+rcParams.update(params)
+
+plt.rc("font", size=SIZE)          # controls default text sizes
+plt.rc("axes", titlesize=SIZE)     # fontsize of the axes title
+plt.rc("axes", labelsize=SIZE)     # fontsize of the x and y labels
+plt.rc("xtick", labelsize=SIZE)    # fontsize of the tick labels
+plt.rc("ytick", labelsize=SIZE)    # fontsize of the tick labels
+plt.rc("legend", fontsize=SIZE)    # legend fontsize
+plt.rc("figure", titlesize=SIZE)   # fontsize of the figure title
+
+# plt.rc('font', **{'family': 'serif', 'serif': ['Computer Modern']})
+
+from matplotlib import font_manager
+ticksfont = font_manager.FontProperties(
+    family="sans-serif", style="normal", size=10,
+    # weight="normal", stretch='normal'
+)
+
+# LaTex
+# --------------------------------------------------------------------------------------
+# The column width is: 455.24411pt
+# The text width is: 455.24411pt
+# The text height is: 702.78308pt
+#
+# The paper width is: 597.50787pt
+# The paper height is: 845.04684pt
+
+# LaTex
+# \message{The column width is: \the\columnwidth}
+# \message{The paper width is: \the\paperwidth}
+# \message{The paper height is: \the\paperheight}
+# \message{The text height is: \the\textheight}
+# \message{The text width is: \the\textwidth}
+
+textwidth = 455.24411  # Value given by Latex
+textheigth = 702.78308  # Value given by Latex
+
+
+import matplotlib.pyplot as plt
+import matplotlib.ticker
+
+
+class OOMFormatter(matplotlib.ticker.ScalarFormatter):
+    def __init__(self, order=0, fformat="%1.1f", offset=True, mathText=True):
+        self.oom = order
+        self.fformat = fformat
+        matplotlib.ticker.ScalarFormatter.__init__(
+            self, useOffset=offset, useMathText=mathText
+        )
+
+    def _set_order_of_magnitude(self):
+        self.orderOfMagnitude = self.oom
+
+    def _set_format(self, vmin=None, vmax=None):
+        self.format = self.fformat
+        if self._useMathText:
+            self.format = r'$\mathdefault{%s}$' % self.format
 
 
 def setup(xstart=None, xend=None, nrows=2, xfmt=mdates.DateFormatter("%y.%m.%d")):
@@ -51,20 +144,49 @@ def setup(xstart=None, xend=None, nrows=2, xfmt=mdates.DateFormatter("%y.%m.%d")
     return fig, axs
 
 
-def wrapup(pdf=None, show=False, bbox=None):
+def save(pdf, filename):
+    if not pdf:
+        # TODO: save directly and use tight
+        # plt.savefig(filename)
+        with PdfPages(filename) as pdf:
+            wrapup(pdf)
+    else:
+        wrapup(pdf)
+
+
+def wrapup(pdf=None, show=False):
     """Finalize current figure. It will clear and close after show and/or save it.
+
+    bbox: https://stackoverflow.com/a/11847260/14113878
 
     :param pdf: matplotlib PdfPages object to save current figure
     :param show: display current figure
     :param bbox:
     """
     if pdf:
-        pdf.savefig(bbox_inches=bbox)
+        pdf.savefig(bbox_inches="tight")
     if show:
         plt.show()
 
     plt.clf()
     plt.close("all")
+
+
+def get_figsize(columnwidth, wf=0.5, hf=(5. ** 0.5 - 1.0) / 2.0):
+    """Parameters:
+    - wf [float]: width fraction in columnwidth units
+    - hf [float]: height fraction in columnwidth units. Set by default to golden ratio.
+    - columnwidth [float]: width of the column in latex. Get this from LaTeX using the
+    follwoing command: \showthe\columnwidth
+
+    Returns: [fig_width, fig_height]: that should be given to matplotlib
+    """
+    fig_width_pt = columnwidth * wf
+    inches_per_pt = 1.0 / 72.27  # Convert pt to inch
+    fig_width = fig_width_pt * inches_per_pt  # Width in inches
+    fig_height = fig_width * hf  # Height in inches
+
+    return [fig_width, fig_height]
 
 
 def zoomin(y, xrange, yrange, axs):
@@ -193,7 +315,7 @@ def corrmatrix(corr, title, pdf, xticks=False):
         plt.xticks([], [])
     plt.title(title)
 
-    wrapup(pdf, False, "tight")
+    # wrapup(pdf, False, "tight")
 
 
 def calhm(dates, title, pdf):

@@ -150,12 +150,24 @@ class SSA(object):
         # Define a cmap
         rbg = np.linspace(0, 1, 10)[::-1]
         cmap = [(item, item, item) for item in rbg]
-        cmap[1] = cmap[2] = cmap[3] = cmap[4]
-        cmap[5] = cmap[6] = cmap[7] = cmap[8]
+        # cmap[1] = cmap[2] = cmap[3] = cmap[4]
+        # cmap[5] = cmap[6] = cmap[7] = cmap[8]
 
-        cmap = "gray_r"
+        # cmap = "gray_r"
+        # cmap = "YlGnBu"
+        # cmap = sns.diverging_palette(230, 20, as_cmap=True)
+        # cmap = sns.diverging_palette(220, 20, n=10)
 
-        sns.heatmap(self.wcorr, ax=ax, cmap=cmap)
+        sns.heatmap(
+            self.wcorr, ax=ax, square=True,
+            cmap=cmap, linewidths=0.0, rasterized=True, cbar_kws={"shrink": 0.75}
+        )
+
+        # plt.xticks(ticks=np.arange(0, 560, 56))
+
+        # sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
+        #             square=True, linewidths=.5, cbar_kws={"shrink": .5})
+        # sns.heatmap(self.wcorr, ax=ax, cmap=cmap)
         # plt.xlabel(r"$\tilde{F}_i$")
         # plt.ylabel(r"$\tilde{F}_j$")
         # plt.colorbar(ax.colorbar, fraction=0.045)

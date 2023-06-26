@@ -1,6 +1,6 @@
 {
     "kdd": {
-        "select": false,
+        "select": true,
         "preprocess": true,
         "transform": true,
         "fit": true,

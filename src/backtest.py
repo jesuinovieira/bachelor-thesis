@@ -2,8 +2,12 @@ import math
 
 import numpy as np
 
-
+# TODO: better handle last iteration. For example, if there are 10 iterations and 101
+#  samples, the last iteration must have 11 observations.
 # TODO: make code reusable (SW and EW are very similar)
+# TODO: save vector of metrics computed for each iteration
+
+
 class SlidingWindow:
     def __init__(self, n_samples, trainw, testw):
         self.n_samples = n_samples
@@ -32,7 +36,6 @@ class SlidingWindow:
         return self.n_splits
 
 
-# TODO: make code reusable (SW and EW are very similar)
 class ExpandingWindow:
     def __init__(self, n_samples, trainw, testw):
         self.n_samples = n_samples

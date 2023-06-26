@@ -177,7 +177,7 @@ class KNNProcessor(Processor):
     def __init__(self, id, df, backtest, output):
         super().__init__(id, df, backtest, output)
         self.method = KNeighborsRegressor
-        self.defaults = dict(algorithm="auto")
+        self.defaults = dict()
 
         self.space = dict(
             n_neighbors=[3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29],

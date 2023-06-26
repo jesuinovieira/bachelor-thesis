@@ -40,5 +40,6 @@ def main():
 
 
 if __name__ == "__main__":
+    raise AssertionError(f"Outdated, you must fix the paths!")
     print(f"Not sure if it's working...")
     # main()

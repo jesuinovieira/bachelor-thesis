@@ -204,4 +204,5 @@ def main(basepath="eda/data"):
 
 
 if __name__ == "__main__":
+    raise AssertionError(f"Outdated, you must fix the paths!")
     main()

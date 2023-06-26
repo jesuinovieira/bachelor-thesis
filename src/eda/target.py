@@ -1,9 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+import seaborn as sns
 from pandas_profiling import ProfileReport
-
-matplotlib.use(f"TkAgg")
 
 
 def read(src):
@@ -82,7 +81,13 @@ def E2(df):
 
 
 def main():
-    df = read("eda/data/raw/merged.csv")
+    sns.set_theme()
+    sns.set_style("whitegrid")
+
+    df = read("src/eda/data/raw/merged.csv")
+
+    print(f"Matplotlib backend: {matplotlib.get_backend()}")
+    matplotlib.use(f"TkAgg")
 
     df = E1(df)
     E2(df)
@@ -96,7 +101,7 @@ def main():
     # Swarm plot
 
     profile = ProfileReport(df, title="Pandas Profiling Report")
-    profile.to_file("eda/output/target.html")
+    profile.to_file("output/eda/target.html")
 
 
 if __name__ == "__main__":
