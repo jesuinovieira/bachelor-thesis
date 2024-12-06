@@ -1,32 +1,18 @@
-# Undergraduate Thesis
+# Bachelor's Thesis 🎓
 
-_An undergraduate thesis (also called Bachelor's dissertation) is a large academic 
-writing piece that requires massive research on the chosen topic._
+You can download my bachelor's thesis [here](https://repositorio.ufsc.br/handle/123456789/237501). Additionally, a [research paper](https://doi.org/10.2166/wpt.2024.096) derived from this work has been published in Water Practice & Technology.
 
-# Directory Structure
+**Advisor:** [Pablo Andretta Jaskowiak](https://pajaskowiak.github.io/)
 
-Based on:  
-https://drivendata.github.io/cookiecutter-data-science/ <br/>
-https://towardsdatascience.com/manage-your-data-science-project-structure-in-early-stage-95f91d4d0600
-
-```text
-├── data
-│   ├── external                Data from third party sources
-│   ├── interim                 Intermediate data that has been transformed
-│   ├── processed               The final, canonical data sets for modeling
-│   └── raw                     The original, immutable data dump
-├── etc                         Stuff that might be useful
-├── notebooks                   Jupyter notebooks
-│   ├── eda                     
-│   ├── poc                     
-│   ├── modeling                
-│   └── evaluation              
-├── output                      Generated graphics and figures to be used in reporting
-├── pipelines                   Automation scripts for models retraining
-├── references                  Papers, books and all other explanatory materials
-├── src                         Source code for use in this project
-│   ├── archive                 No longer useful
-│   ├── data                    Scripts to download or generate data
-│   ├── TBD                       
-├── requirements.txt            The requirements file for reproducing the analysis environment
+```
+@article{filho2024machine,
+    title={Machine learning for water demand forecasting: Case study in a Brazilian coastal city},
+    author={Filho, Jesuino Vieira and Scortegagna, Arlan and Vieira, Amanara Potykyt{\~a} de Sousa Dias and Jaskowiak, Pablo Andretta},
+    journal={Water Practice \& Technology},
+    volume={19},
+    number={5},
+    pages={1586--1602},
+    year={2024},
+    publisher={IWA Publishing}
+}
 ```
